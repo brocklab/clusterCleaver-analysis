@@ -1,6 +1,6 @@
-# Cancer Data
+# Optimal Separation 
 
-This repo will house the necessary pipeline to generate a mutli-study multi-cancer data set for use by the Brocklab.
+This is a set of scripts meant for searching for optimal surface markers. Multiple public datasets have been downloaded for analysis. Additionally, we have collected single-cell data from <5 passage cell lines from ATCC. 
 
 ## Setup
 
