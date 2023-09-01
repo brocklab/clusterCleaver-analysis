@@ -1,0 +1,290 @@
+---
+jupyter: python3
+---
+
+```{python}
+import logging
+from pathlib import Path
+import warnings
+
+import matplotlib.pyplot as plt
+import scanpy as sc
+from tqdm import tqdm
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import rpy2.rinterface_lib.callbacks
+import anndata2ri
+import rpy2.robjects as ro
+from rpy2.robjects import pandas2ri
+
+from scrna.cfg import setup_scanpy, get_root_dir
+from scrna.cluster.main import compute_dimensionality_reductions
+
+
+sc.settings.verbosity = 0
+rpy2.rinterface_lib.callbacks.logger.setLevel(logging.ERROR)
+
+pandas2ri.activate()
+anndata2ri.activate()
+
+# TODO: don't use magic
+%load_ext rpy2.ipython
+```
+
+```{python}
+warnings.filterwarnings("ignore")
+(OUTS := (ROOT := get_root_dir()) / "outs" / "subpopulations").mkdir(
+    exist_ok=True, parents=True
+)
+(OUTS / "umaps").mkdir(exist_ok=True)
+setup_scanpy(OUTS)
+```
+
+```{python}
+adata = sc.read(ROOT / "data/h5ads/kinker-subpopulations.h5ad")
+adata
+```
+
+```{python}
+compute_dimensionality_reductions(adata)
+# sc.tl.leiden(adata)
+```
+
+```{python}
+sc.pl.umap(adata, color=["Cell_line"], save="_cell_lines.svg")
+```
+
+```{python}
+def umap_color_one_cell_line(adata, cell_line, **kwargs):
+    opts = dict(show=False, title=cell_line, legend_loc=None)
+
+    opts.update(**kwargs)
+
+    sc.pl.umap(adata, color=["Cell_line"], groups=[cell_line], **opts)
+```
+
+```{python}
+# sc.tl.rank_genes_groups(adata_single, groupby='leiden',  method='wilcoxon')
+# res_rank_genes = sc.get.rank_genes_groups_df(adata_single, group='0')
+# names = res.query('pvals_adj<0.05').sort_values('logfoldchanges')['names']
+# genes = dict(down=names[:25], up=names[-25:])
+```
+
+```{python}
+# sc.pl.heatmap(adata_single, var_names=genes, groupby='leiden', standard_scale='var') -->
+```
+
+```{python}
+%%R
+library(MAST)
+```
+
+```{python}
+def prep_anndata(adata_):
+    def fix_dtypes(adata_):
+        df = pd.DataFrame(adata_.X.A, index=adata_.obs_names, columns=adata_.var_names)
+        df = df.join(adata_.obs)
+        return sc.AnnData(df[adata_.var_names], obs=df.drop(columns=adata_.var_names))
+
+    adata_ = fix_dtypes(adata_)
+    sc.pp.filter_genes(adata_, min_cells=3)
+    return adata_
+```
+
+```{python}
+# ro.r(Path('./find_de_MAST_RE.R').read_text())
+find_de_MAST = ro.r(Path("./find_de_MAST_RE.R").read_text())
+find_de_MAST_py = ro.functions.wrap_r_function(find_de_MAST, "find_de_MAST_py")
+
+
+def find_de_MAST_RE(adata):
+    adata = prep_anndata(adata)
+    res_r = find_de_MAST_py(adata)
+    with (ro.default_converter + pandas2ri.converter).context():
+        res = ro.conversion.get_conversion().rpy2py(res_r)
+
+    return res
+```
+
+```{python}
+res = find_de_MAST_RE(adata_single)
+```
+
+```{python}
+adatas = {}
+for cell_line in adata.obs["Cell_line"].cat.categories.to_list():
+    adata_sub = adata[adata.obs["Cell_line"] == cell_line]
+    compute_dimensionality_reductions(adata_sub)
+    sc.tl.leiden(adata_sub, resolution=0.1)
+    if adata_sub.obs["leiden"].nunique() == 2:
+        adatas[cell_line] = adata_sub
+    else:
+        print(f"ignoring: {cell_line}; clusters = ", adata_sub.obs["leiden"].nunique())
+
+# adata.obs[["Cell_line","leiden"]].drop_duplicates()
+```
+
+```{python}
+figdir_old = sc.settings.figdir
+(OUTS / "heatmaps").mkdir(exist_ok=True)
+sc.settings.figdir = OUTS / "heatmaps"
+
+for cell_line, adata_sub in adatas.items():
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    umap_color_one_cell_line(adata, cell_line, ax=axes[0], title="", frameon=False)
+
+    sc.pl.umap(
+        adata_sub,
+        color="leiden",
+        show=False,
+        ax=axes[1],
+        legend_loc=None,
+        title="",
+        frameon=False,
+    )
+    fig.suptitle(cell_line)
+    fig.savefig(OUTS / "umaps" / f"umap_{cell_line}.png")
+sc.settings.figdir = figdir_old
+```
+
+```{python}
+res_subs = {}
+for cell_line, adata_sub in tqdm(adatas.items()):
+    res_subs[cell_line] = find_de_MAST_RE(adata_sub)
+```
+
+```{python}
+# import pickle
+# with (ROOT / 'data'/ 'res_subs.p').open('wb') as f:
+#     pickle.dump(res_subs, f)
+```
+
+```{python}
+def volcano_plot(result, title=None, log2fc_cutoff=0.75, save=None):
+    result["-logQ"] = -np.log10(result["FDR"].astype("float"))
+    lowqval_de = result.loc[abs(result["coef"]) > log2fc_cutoff]
+    other_de = result.loc[abs(result["coef"]) <= log2fc_cutoff]
+
+    fig, ax = plt.subplots()
+    ax.scatter(other_de["coef"], other_de["-logQ"], s=6, label="low")
+    ax.scatter(lowqval_de["coef"], lowqval_de["-logQ"], s=6)
+    ax.set_xlabel("log2(FC)")
+    ax.set_ylabel("-log(Q-value)")
+
+    if title:
+        plt.title(title)
+    if save:
+        fig.savefig(save)
+    plt.show()
+```
+
+```{python}
+(OUTS / "volcanos").mkdir(exist_ok=True)
+for cell_line, res_sub in res_subs.items():
+    res_sub = res_sub.dropna()
+    n_genes = len(res_sub)
+    significant_n_genes = len(res_sub[res_sub["FDR"] < 0.05])
+
+    volcano_plot(
+        res_sub,
+        title=f"{cell_line} | {significant_n_genes}/{n_genes} genes",
+        save=OUTS / "volcanos" / f"volcano_{cell_line}.png",
+    )
+```
+
+```{python}
+old_fig_dir = sc.settings.figdir
+(OUTS / "heatmaps").mkdir(exist_ok=True)
+sc.settings.figdir = OUTS / "heatmaps"
+
+for cell_line, res_sub in res_subs.items():
+    gene_list = res_sub.dropna().query("FDR<0.01").sort_values("coef")["primerid"]
+    genes = dict(down=gene_list[:20], up=gene_list[-20:])
+    sc.pl.heatmap(
+        adatas[cell_line],
+        var_names=genes,
+        groupby="leiden",
+        standard_scale="var",
+        save=f"_subpop_{cell_line}_hmap_top_20_genes.png",
+    )
+sc.settings.fidir = old_fig_dir
+```
+
+```{python}
+res_sub = list(res_subs.values())[0]
+```
+
+Does this pattern hold for a population that appears to be 'one' cluster?
+I would hypothesize that if we increase the leiden clustering in order to force sub-clusters,
+we would see less DE.
+
+```{python}
+adata_full = sc.read(ROOT / "data/h5ads/kinker-postqc-normalized-clustered.h5ad")
+```
+
+The third largest population seemed to not have multiple populations.
+
+```{python}
+neg_cell_line = (
+    adata_full.obs.groupby("Cell_line")
+    .size()
+    .sort_values(ascending=False)
+    .reset_index()
+    .iloc[2]["Cell_line"]
+)
+
+adata_neg = adata_full[adata_full.obs["Cell_line"] == neg_cell_line]
+```
+
+```{python}
+compute_dimensionality_reductions(adata_neg)
+sc.pl.umap(adata_neg)
+```
+
+```{python}
+resolutions = [0.1, 0.2, 0.3, 0.4]
+for resolution in resolutions:
+    sc.tl.leiden(adata_neg, resolution=resolution, key_added=f"r{resolution}")
+sc.pl.umap(
+    adata_neg, color=[f"r{i}" for i in resolutions], save="negative_control_leiden.png"
+)
+```
+
+```{python}
+sc.tl.leiden(adata_neg, resolution=0.4)
+```
+
+```{python}
+res_sub_negative = find_de_MAST_RE(adata_neg)
+```
+
+```{python}
+res_sub_negative = res_sub_negative.dropna()
+n_genes = len(res_sub_negative)
+significant_n_genes = len(res_sub_negative[res_sub_negative["FDR"] < 0.05])
+volcano_plot(
+    res_sub_negative,
+    title=f"{neg_cell_line} | {significant_n_genes}/{n_genes} genes",
+    save=OUTS / "volcanos" / f"volcano_negative_control_{neg_cell_line}.png",
+)
+```
+
+```{python}
+res_sub = res_sub_negative
+cell_line = neg_cell_line
+
+
+old_fig_dir = sc.settings.figdir
+sc.settings.figdir = OUTS / "heatmaps"
+gene_list = res_sub.dropna().query("FDR<0.01").sort_values("coef")["primerid"]
+genes = dict(down=gene_list[:20], up=gene_list[-20:])
+sc.pl.heatmap(
+    adata_neg,
+    var_names=genes,
+    groupby="leiden",
+    standard_scale="var",
+    save=f"_subpop_{cell_line}_hmap_top_20_genes.png",
+)
+sc.settings.fidir = old_fig_dir
+```

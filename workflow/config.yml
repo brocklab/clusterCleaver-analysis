@@ -1,0 +1,36 @@
+datasets:
+  kinker:
+    raw:
+      - name: "umi-counts.txt"
+        source: local
+        path: data/reference/kinker/umi-counts.txt
+      - name: "metadata.txt"
+        source: local
+        path: data/reference/kinker/metadata.txt
+    loader:
+      umis: data/reference/kinker/umi-counts.txt
+      metadata: data/reference/kinker/metadata.txt
+      module: scrna.loaders.raw
+      flags: >
+        --umis data/reference/kinker/umi-counts.txt
+        --metatdata data/reference/kinker/metadata.txt
+        --metadata_kws '{"sep":"\t","skiprows":[1],"index_col":0,"dtype":{"Pool_ID":"str"}}'
+        --transpose
+        --filter-na 'Cell_line'
+  "231-1KB3":
+    raw:
+      - name: "h5"
+        source: local
+        path: data/raw/231-1KB3/filtered_feature_bc_matrix.h5
+    loader:
+      module: scrna.loaders.h5
+      flags: >
+        --h5 data/raw/231-1KB3/filtered_feature_bc_matrix.h5
+        --sample-list 'PT,Dox,A4,A6,C2,C3'
+        --samples 'PT'
+
+batched:
+  combined:
+    datasets:
+      - kinker
+      - 231-1KB3

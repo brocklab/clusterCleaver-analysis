@@ -1,0 +1,153 @@
+---
+jupyter: python3
+---
+
+```{python}
+from pathlib import Path
+import warnings
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import scanpy as sc
+from tqdm import tqdm
+
+from scrna.cfg import setup_scanpy, get_root_dir
+```
+
+```{python}
+warnings.filterwarnings("ignore")
+(OUTS := (ROOT := get_root_dir()) / "outs" / "umaps").mkdir(exist_ok=True, parents=True)
+setup_scanpy(OUTS)
+```
+
+```{python}
+adata = sc.read(ROOT / "data/h5ads/kinker-postqc-normalized-clustered.h5ad")
+adata
+```
+
+Unique categories within dataset:
+
+```{python}
+adata.obs[["Cell_line", "Pool_ID", "Cancer_type"]].nunique()
+```
+
+There is a lot of indivual samples in this dataset to observe.
+
+```{python}
+sc.pl.umap(adata, color="Pool_ID", save="_kinker_poolid.png")
+```
+
+```{python}
+sc.pl.umap(adata, color="ESAM", save="_kinker_esam.png")
+```
+
+```{python}
+# find cell expression of ESAM across cell lines
+# adata.obs['ESAM'] = sc.get.obs_df(adata,keys=['ESAM'])
+# adata.obs.groupby("Cell_line")["ESAM"].mean().sort_values(ascending=False).pipe(
+#     lambda x: x[x.gt(0)]
+# )
+```
+
+```{python}
+adata.obs.groupby("Cancer_type")["Cell_line"].unique()
+```
+
+```{python}
+print("\n".join(adata.obs.query("Cancer_type=='Breast Cancer'")["Cell_line"].unique()))
+```
+
+Umaps of each cell line
+
+```{python}
+cell_lines = adata.obs["Cell_line"].cat.categories.to_list()
+umap_coords = sc.get.obs_df(
+    adata, keys=["Cell_line", "Cancer_type"], obsm_keys=[("X_umap", 0), ("X_umap", 1)]
+)
+
+fig, axes = plt.subplots(11, 18, figsize=(30, 30))
+
+for cell_line, ax in zip(cell_lines, axes.flat):
+    umap_coords_cell_line = umap_coords.query("Cell_line==@cell_line")
+
+    ax.scatter(umap_coords_cell_line["X_umap-0"], umap_coords_cell_line["X_umap-1"])
+
+    ax.tick_params(
+        left=False, right=False, labelleft=False, labelbottom=False, bottom=False
+    )
+```
+
+```{python}
+def recluster(adata):
+    sc.pp.pca(adata, svd_solver="arpack", use_highly_variable=True)
+    sc.pp.neighbors(adata)
+    sc.tl.umap(adata)
+    sc.tl.leiden(adata, resolution=0.1)
+    return adata
+
+
+adatas = {}
+for cell_line in tqdm(adata.obs["Cell_line"].cat.categories.to_list()):
+    adatas[cell_line] = recluster(adata[adata.obs["Cell_line"] == cell_line])
+```
+
+Plot Umaps of each data after re-clustering and re-embedding
+
+```{python}
+#? could show cancer types as rows
+cell_lines = adata.obs.groupby("Cell_line").size().sort_values(ascending=False).index
+
+
+def plot_subumap(df, ax):
+    leiden = df["leiden"][0]
+    ax.scatter(df["X_umap-0"], df["X_umap-1"], label=leiden)
+
+
+def highlight_axis(ax):
+    ax.zorder = 5
+    ax.spines[:].set_color("red")
+    ax.spines[:].set_linewidth(5)
+
+
+fig, axes = plt.subplots(11, 18, figsize=(30, 30))
+for cell_line, ax in zip(cell_lines, axes.flat):
+    df = sc.get.obs_df(
+        adatas[cell_line], keys=["leiden"], obsm_keys=[("X_umap", 0), ("X_umap", 1)]
+    )
+
+    df.groupby("leiden").apply(plot_subumap, ax=ax)
+
+    if df["leiden"].nunique() > 1:
+        highlight_axis(ax)
+
+    ax.tick_params(
+        left=False, right=False, labelleft=False, labelbottom=False, bottom=False
+    )
+
+fig.subplots_adjust(wspace=0, hspace=0)
+fig.savefig(OUTS / "umap-inidividual-cell-line.png", transparent=True)
+```
+
+```{python}
+def get_cell_lines_with_subpopulations(adatas):
+    return [
+        cell_line
+        for cell_line, adata in adatas.items()
+        if adata.obs["leiden"].nunique() > 1
+    ]
+
+
+cell_lines_subpopulations = get_cell_lines_with_subpopulations(adatas)
+```
+
+```{python}
+Path(ROOT / "data/cell_lines_with_subpopulations.txt").write_text(
+    "\n".join(cell_lines_subpopulations)
+)
+```
+
+```{python}
+adata[adata.obs["Cell_line"].isin(get_cell_lines_with_subpopulations(adatas))].write(
+    ROOT / "data/h5ads/kinker-subpopulations.h5ad"
+)
+```
