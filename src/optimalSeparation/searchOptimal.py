@@ -6,6 +6,7 @@ from tqdm import tqdm
 import pandas as pd
 import itertools
 import warnings
+from scipy.sparse import issparse
 
 def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCombos = 10000):
     """
@@ -19,6 +20,8 @@ def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
     Outputs:
         - dfScores: Modified surface genes dataframe with a new separation score
     """
+    if issparse(adata.X):
+        adata.X = adata.X.toarray()
     scGenes = np.array(adata.var.index)
 
     availableGenes = [gene for gene in surfaceGenes if gene in scGenes]

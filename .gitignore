@@ -200,3 +200,4 @@ figures/
 locked.yml
 env.yml
 env.txt
+cache/
