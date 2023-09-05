@@ -1,11 +1,8 @@
 # %%
 import scanpy as sc
 import os
-from pathlib import Path
-from tqdm import tqdm
-import pickle
 import pandas as pd
-import anndata
+import matplotlib.pyplot as plt
 
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal
@@ -37,9 +34,19 @@ for cellLine, adataSub in adatas.items():
             break
     cellLineRes[cellLine] = leidenResolution
 # %%
+plt.rcParams["figure.figsize"] = (10,10)
+fig, axs = plt.subplots(3,2)
+axs = axs.ravel()
+idx = 0
 for cellLine, adataSub in adatas.items():
     sc.tl.leiden(adataSub, resolution= cellLineRes[cellLine])
-    sc.pl.umap(adataSub, color = 'leiden', title = cellLine)
+    sc.pl.umap(adataSub, 
+               color = ['total_counts'], 
+               title = cellLine,
+               ax = axs[idx],
+               show = False)
+    idx += 1
+
 
 # %%
 adata = adatas['mdamb436'].copy()
