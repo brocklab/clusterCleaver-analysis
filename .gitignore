@@ -197,7 +197,4 @@ figures/
 # Misc
 /notebooks/cometSC/**
 /workflow/Snakefile
-locked.yml
-env.yml
-env.txt
 cache/
