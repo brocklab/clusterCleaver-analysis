@@ -92,6 +92,7 @@ def searchSeparation2(adata, dfScores, label = 'leiden', metric = 'auc', nGenes 
     
     dfScores = dfScores.sort_values(by = 'auc', ascending=False).reset_index(drop=True)
     return dfScores
+
 def paretoOptimal(costs):
     """
     Finds pareto-optimal points

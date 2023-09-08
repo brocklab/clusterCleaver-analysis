@@ -7,10 +7,13 @@ import scipy.sparse
 # %%
 def plotExpression(adata, genes, colorCol = 'leiden'):
     X = adata[:, genes].X
-    plt.scatter(X[:,0], X[:, 1], c = adata.obs[colorCol].astype(int))
-    plt.xlabel(genes[0])
-    plt.ylabel(genes[1])
-
+    if scipy.sparse.issparse(X):
+        X = X.toarray()
+    
+    dfExpr = pd.DataFrame([X[:,0], X[:, 1], adata.obs['leiden']]).T
+    dfExpr.columns = [genes[0], genes[1], 'leiden']
+    sns.scatterplot(data = dfExpr, x = genes[0], y = genes[1], hue = 'leiden')
+    
 def plotHists(adata, gene, colorCol = 'leiden'):
     surfaceIdx = np.where(adata.var.index.isin([gene]))[0][0]
     expression = adata.X[:, surfaceIdx]
