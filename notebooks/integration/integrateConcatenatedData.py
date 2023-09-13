@@ -10,6 +10,13 @@ import matplotlib
 adata_raw = sc.read_h5ad(
     "../../data/h5ads/adataConcatInner.h5ad"
 )
+
+# %%
+adataJostner = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
+adataJostner.obs['batch'] = 'jostner'
+adataJostner.obs['cellLine'] = adataJostner.obs['sample']
+adata_raw = sc.concat([adata_raw, adataJostner])
+
 adata_raw.layers["logcounts"] = adata_raw.X
 adata_raw
 
