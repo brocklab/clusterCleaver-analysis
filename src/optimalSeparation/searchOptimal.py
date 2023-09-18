@@ -48,13 +48,16 @@ def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
         cluster = pd.DataFrame(X).set_index(y).groupby('leiden').mean().reset_index().idxmax(0)[0]
 
         isClust = np.where(y == cluster)[0]
+        percentAboveThresh = np.sum(clf.predict(X[isClust]) == cluster)/len(isClust)
+
         medExpr = np.median(X[isClust])
 
-        comboScores[combo] = [score, auc, cluster, medExpr]
+        
+        comboScores[combo] = [score, auc, cluster, medExpr, percentAboveThresh]
 
     dfScores = pd.DataFrame(comboScores).T.reset_index()
     nGenes = len(surfaceCombos[0])
-    dfScores.columns = [f'gene{geneNum+1}' for geneNum in range(nGenes)] + ['accuracy', 'auc', 'cluster', 'medExpr']
+    dfScores.columns = [f'gene{geneNum+1}' for geneNum in range(nGenes)] + ['accuracy', 'auc', 'cluster', 'medExpr', 'percentAboveThresh']
     
     dfScores = dfScores.sort_values(by = 'auc', ascending=False).reset_index(drop=True)
     return dfScores
