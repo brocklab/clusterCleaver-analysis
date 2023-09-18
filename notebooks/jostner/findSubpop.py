@@ -143,7 +143,7 @@ for cellLine in ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38']:
     plt.show()
 # %% ESAM Expression Values for 231s
 adata = adatas['mdamb231']
-visualization.plotHists(, gene = 'ESAM')
+visualization.plotHists(adata, gene = 'ESAM')
 plt.title('MDAMB231 Separation')
 
 sc.pl.umap(adata, color = 'ESAM')
