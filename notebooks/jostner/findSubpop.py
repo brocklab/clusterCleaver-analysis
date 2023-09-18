@@ -122,6 +122,38 @@ pareto1Df.to_csv('../../data/optimalGenes/jostner/jostnerParetoGenes1.csv', inde
 pareto2Df.to_csv('../../data/optimalGenes/jostner/jostnerParetoGenes2.csv', index = None)
 
 # %%
+from sklearn.linear_model import RidgeClassifier
+from sklearn import metrics
+
+adata = adatas['mdamb231'].copy()
+# adata.X = adata.X.toarray()
+label = 'leiden'
+combo = ['THBS1']
+surfaceIdx = np.where(adata.var.index.isin(combo))[0]
+X = adata.X[:, surfaceIdx]
+y = adata.obs[label].astype('int')
+clf = RidgeClassifier().fit(X,y)
+# The score is the accuracy when predicting cluster identity
+score = clf.score(X, y)
+
+y_score = clf.decision_function(X)
+fpr, tpr, _ = metrics.roc_curve(y, y_score)
+auc = metrics.auc(fpr, tpr)
+
+# Cluster with highest expression
+cluster = pd.DataFrame(X).set_index(y).groupby('leiden').mean().reset_index().idxmax(0)[0]
+
+isClust = np.where(y == cluster)[0]
+percentAboveThresh = np.sum(clf.predict(X[isClust]) == cluster)/len(isClust)
+medExpr = np.median(X[isClust])
+
+thresh = []
+exprRange = np.arange(0, np.max(X), 0.0001)
+exprPred = clf.predict(exprRange.reshape(-1,1))
+exprThresh = exprRange[np.where(exprPred == cluster)[0][0]]
+
+sc.pl.umap(adata, color = ['leiden', combo[0]])
+# %%
 for cellLine in cellLines:
     print(cellLine)
     print(allOptimalGenes[cellLine].head())
