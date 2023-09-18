@@ -30,7 +30,6 @@ def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
     if len(surfaceCombos) > nCombos:
         warnings.warn('The number of combos generated is beyond the set maximum number of combos. Was this intentional?')
     print(f'Searching for {len(surfaceCombos)} combinations of {nGenes} gene(s)')
-    maxScore = 0
     comboScores = {}
     
     for combo in tqdm(surfaceCombos):
@@ -45,14 +44,17 @@ def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
         fpr, tpr, _ = metrics.roc_curve(y, y_score)
         auc = metrics.auc(fpr, tpr)
 
+        # Cluster with highest expression
         cluster = pd.DataFrame(X).set_index(y).groupby('leiden').mean().reset_index().idxmax(0)[0]
-        comboScores[combo] = [score, auc, cluster]
-        if auc > maxScore:
-            maxScore = auc
-            # print(f'New max score: {maxScore:0.2g}')
+
+        isClust = np.where(y == cluster)[0]
+        medExpr = np.median(X[isClust])
+
+        comboScores[combo] = [score, auc, cluster, medExpr]
+
     dfScores = pd.DataFrame(comboScores).T.reset_index()
     nGenes = len(surfaceCombos[0])
-    dfScores.columns = [f'gene{geneNum+1}' for geneNum in range(nGenes)] + ['accuracy', 'auc', 'cluster']
+    dfScores.columns = [f'gene{geneNum+1}' for geneNum in range(nGenes)] + ['accuracy', 'auc', 'cluster', 'medExpr']
     
     dfScores = dfScores.sort_values(by = 'auc', ascending=False).reset_index(drop=True)
     return dfScores
@@ -82,13 +84,16 @@ def searchSeparation2(adata, dfScores, label = 'leiden', metric = 'auc', nGenes 
         auc = metrics.auc(fpr, tpr)
 
         cluster = pd.DataFrame(X).set_index(y).groupby('leiden').mean().reset_index().idxmax(0)[0]
-        comboScores[combo] = [score, auc, cluster]
+        
+        medExpr = np.median(X)
+        
+        comboScores[combo] = [score, auc, cluster, medExpr]
         if auc > maxScore:
             maxScore = auc
             # print(f'New max score: {maxScore:0.2g}')
     dfScores = pd.DataFrame(comboScores).T.reset_index()
     nGenes = len(surfaceCombos[0])
-    dfScores.columns = [f'gene{geneNum+1}' for geneNum in range(nGenes)] + ['accuracy', 'auc', 'cluster']
+    dfScores.columns = [f'gene{geneNum+1}' for geneNum in range(nGenes)] + ['accuracy', 'auc', 'cluster', 'medianExpression']
     
     dfScores = dfScores.sort_values(by = 'auc', ascending=False).reset_index(drop=True)
     return dfScores

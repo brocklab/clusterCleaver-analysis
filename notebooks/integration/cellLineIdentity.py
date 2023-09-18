@@ -2,6 +2,7 @@
 import scanpy as sc
 # %%
 adata = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
+adata.obs['cmo'] = adata.obs.index.str.split('-').str[-1]
 # %%
 genesmdamb231 = ["C4BPB",   "ADGRF5",  "GPAT2",   "PHYHD1",  "ACSL5",   "CCRL2",   "SPINK4",  "ADGRF1",  "SERPINB9"]
 genesmdamb453 = ["LRRC31","DACH1", "LHX1",  "ADCY2", "NUPR2", "GRM4",  "ABCA12"]
@@ -39,6 +40,16 @@ for file in files:
 # %%
 sc.pl.matrixplot(adata, 
                  var_names = dm, 
-                 groupby = 'sample', 
+                 groupby = 'cmo', 
                  dendrogram=True, 
                  standard_scale='var')
+# %%
+# Replacing CMOS 
+sampleDict = {'1': 'bt474',
+              '2': 'mdamb453',
+              '3': 'hcc38',
+              '4': 'mdamb231',
+              '5': 'hs578t',
+              '6': 'mdamb436'}
+adata.obs['sample'] = adata.obs.index.str.split('-').str[1].to_series().astype('string').replace(sampleDict).tolist()
+adata.write_h5ad('../../data/h5ads/jostner-processed.h5ad')

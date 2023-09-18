@@ -66,15 +66,61 @@ sc.pl.dendrogram(adata, groupby = 'leiden')
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
 allOptimalGenes, allOptimalCombos = {}, {}
+allPareto1, allPareto2 = {}, {}
 cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
     adata = adatas[cellLine]
     optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
+    optimalGenesSurface = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalGenes, nGenes = 1)
+    optimalGenesPareto = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface)
+
     optimalCombos = searchOptimal.searchSeparation2(adata, optimalGenes, nGenes = 75)
+    optimalGenesSurface2 = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalCombos, nGenes = 2)
+    optimalGenesPareto2 = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface2, nGenes = 2)
 
     allOptimalGenes[cellLine] = optimalGenes
     allOptimalCombos[cellLine] = optimalCombos
+
+    allPareto1[cellLine] = optimalGenesPareto
+    allPareto2[cellLine] = optimalGenesPareto2
+# %%
+optimGenesDf = []
+optimCombosDf = []
+pareto1Df = []
+pareto2Df = []
+for cellLine in cellLines:
+    optimalGenes = allOptimalGenes[cellLine]
+    optimalGenes['cellLine'] = cellLine
+
+    optimalCombos = allOptimalCombos[cellLine]
+    optimalCombos['cellLine'] = cellLine
+
+    pareto1 = allPareto1[cellLine]
+    pareto1['cellLine'] = cellLine
+
+    pareto2 = allPareto2[cellLine]
+    pareto2['cellLine'] = cellLine
+
+    assert 0 in optimalGenes.head(10)['cluster']
+    assert 1 in optimalGenes.head(10)['cluster']
+
+    optimGenesDf.append(optimalGenes.head(10))
+    optimCombosDf.append(optimalCombos.head(100))
+    pareto1Df.append(pareto1)
+    pareto2Df.append(pareto2)
+
+optimGenesDf = pd.concat(optimGenesDf)
+optimCombosDf = pd.concat(optimCombosDf)
+
+pareto1Df = pd.concat(pareto1Df)
+pareto2Df = pd.concat(pareto2Df)
+
+optimGenesDf.to_csv('../../data/optimalGenes/jostner/jostnerOptimGenes1.csv', index = None)
+optimCombosDf.to_csv('../../data/optimalGenes/jostner/jostnerOptimGenes2.csv', index = None)
+pareto1Df.to_csv('../../data/optimalGenes/jostner/jostnerParetoGenes1.csv', index = None)
+pareto2Df.to_csv('../../data/optimalGenes/jostner/jostnerParetoGenes2.csv', index = None)
+
 # %%
 for cellLine in cellLines:
     print(cellLine)
@@ -95,7 +141,15 @@ for cellLine in ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38']:
     visualization.plotExpression(adatas[cellLine], bestGene2)
     plt.title(f'{cellLine} Expression Values')
     plt.show()
-# %%
+# %% ESAM Expression Values for 231s
+adata = adatas['mdamb231']
+visualization.plotHists(, gene = 'ESAM')
+plt.title('MDAMB231 Separation')
+
+sc.pl.umap(adata, color = 'ESAM')
+
+sc.pl.umap(adata, color = 'leiden')
+
 
 # %%
 cellLine = 'mdamb453'
@@ -109,62 +163,3 @@ allOptimalCombos[cellLine] = optimalCombos
 # %%
 sc.pl.umap(adatas['mdamb231'], color = 'ESAM')
 # %%
-genes = ["GSTP1",  "MGP",    "SOD2",   "SPARC",  "PI3",    "EGLN3",  "POSTN",  "TFF1",   "PGAP3",  "F2RL1",  "COL1A2", "NR2F1",  "S100A6", "H3C14", "XAGE1A"]
-for gene in genes:
-    if gene not in adataFull.var_names:
-        continue
-    plt.rcParams["figure.figsize"] = (12,12)
-    fig, axs = plt.subplots(3,2)
-    axs = axs.ravel()
-    idx = 0
-
-    vmin = 100
-    vmax = -100
-    for cellLine, adataSub in adatas.items():
-        geneIdx = np.where(adataSub.var.index == gene)[0]
-        if np.min(adataSub.X[:, geneIdx]) < vmin:
-            vmin = np.min(adataSub.X[:, geneIdx])
-        if np.max(adataSub.X[:, geneIdx]) > vmax:
-            vmax = np.max(adataSub.X[:, geneIdx])
-    for cellLine, adataSub in adatas.items():
-        # sc.tl.leiden(adataSub, resolution = cellLineRes[cellLine])
-        sc.pl.umap(adataSub, 
-                color = [gene], 
-                title = cellLine,
-                ax = axs[idx],
-                vmin = vmin,
-                vmax = vmax,
-                show = False)
-        idx += 1
-    fig.suptitle(gene)
-    plt.show()
-    fig.savefig(f'../../figures/cellTypeChecking/{gene}Expression.png', dpi=500)
-# %%
-genes = ["GSTP1",  "MGP",    "SOD2",   "SPARC",  "PI3",    "EGLN3",  "POSTN",  "TFF1",   "PGAP3",  "F2RL1",  "COL1A2", "NR2F1",  "S100A6", "XAGE1A"]
-fig, axs = plt.subplots(4, 4)
-axs = axs.ravel()
-idx = 0
-plt.rcParams["figure.figsize"] = (20, 20adata.X = adata.layers["counts"].copy()
-sc.pp.normalize_total(adata)
-sc.pp.log1p(adata)
-adata.layers["logcounts"] = adata.X.copy()
-sc.pp.highly_variable_genes(adata))
-for gene in genes:
-    sc.pl.violin(adataFull, 
-                 gene, 
-                 groupby = 'sample',
-                 ax = axs[idx],
-                 show = False,
-                 rotation=90
-                 )
-    idx += 1
-
-# %%
-sc.tl.rank_genes_groups(adata, groupby='sample')
-allDfs = []
-for sample in adataFull.obs['sample'].unique():
-    sampleDf = sc.get.rank_genes_groups_df(adataFull, group = sample)
-    sampleDf['sample'] = sample
-    allDfs.append(sampleDf)
-
-sampleRankConcat = pd.concat(allDfs)
