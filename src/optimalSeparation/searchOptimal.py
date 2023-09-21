@@ -36,7 +36,7 @@ def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
         surfaceIdx = np.where(adata.var.index.isin(combo))[0]
         X = adata.X[:, surfaceIdx]
         y = adata.obs[label].astype('int')
-        clf = RidgeClassifier().fit(X,y)
+        clf = RidgeClassifier(class_weight='balanced').fit(X,y)
         # The score is the accuracy when predicting cluster identity
         score = clf.score(X, y)
         
@@ -78,7 +78,7 @@ def searchSeparation2(adata, dfScores, label = 'leiden', metric = 'auc', nGenes 
         surfaceIdx = np.where(adata.var.index.isin(combo))[0]
         X = adata.X[:, surfaceIdx]
         y = adata.obs[label].astype('int')
-        clf = RidgeClassifier().fit(X,y)
+        clf = RidgeClassifier(class_weight='balanced').fit(X,y)
         # The score is the accuracy when predicting cluster identity
         score = clf.score(X, y)
         
@@ -129,6 +129,7 @@ def mergeSurfaceScores(surfaceGenes, dfScores, nGenes = 1):
                                                             left_on  = f'gene{geneNum}', 
                                                             right_on = f'gene{geneNum}')
     return dfScores
+
 def findOptimalSurfaceMarkers(dfScores, metric = 'auc', nGenes = 1):
     """
     Finds the pareto-optimal genes for surface separation

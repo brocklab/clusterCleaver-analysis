@@ -49,19 +49,6 @@ for cellLine, adataSub in adatas.items():
                ax = axs[idx],
                show = False)
     idx += 1
-
-
-# %%
-sc.tl.rank_genes_groups(adataFull, groupby = 'sample')
-# %%
-adata = adatas['mdamb436'].copy()
-# %%
-plt.rcParams["figure.figsize"] = (4,4)
-sc.tl.leiden(adata, resolution=0.06)
-sc.pl.umap(adata, color = 'leiden', title = 'mdamb436 leiden')
-
-sc.tl.dendrogram(adata, groupby = 'leiden')
-sc.pl.dendrogram(adata, groupby = 'leiden')
 # %%
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
@@ -144,17 +131,44 @@ while nLeiden != 3:
 # %%
 hcc38Genes = {}
 
-clusters = ['0', '1', '2']
+clusters = ['2']
 for cluster in clusters:
     adataSub = adatas['hcc38'].copy()
     adataSub.obs['leiden'] = adataSub.obs['leiden'].astype("string")
     # Set preferred gene to be 1
-    adataSub.obs.loc[adataSub.obs['leiden'] != cluster, 'leiden'] = '-1'
-    adataSub.obs.loc[adataSub.obs['leiden'] == cluster, 'leiden'] = '1'
-    adataSub.obs.loc[adataSub.obs['leiden'] == '-1',      'leiden'] = '0'
+    adataSub.obs.loc[adataSub.obs['leiden'] != cluster, 'leiden']   = '-1'
+    adataSub.obs.loc[adataSub.obs['leiden'] == cluster, 'leiden']   = '1'
+    adataSub.obs.loc[adataSub.obs['leiden'] == '-1',    'leiden']   = '0'
 
     optimalGenes = searchOptimal.searchGeneSeparation(adataSub, surfaceGenes['gene'])
     optimalGenes = optimalGenes.loc[optimalGenes['cluster'] != 0]
     hcc38Genes[cluster] = optimalGenes
 # %%
-optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
+from sklearn.linear_model import RidgeClassifier
+from sklearn import metrics
+from tqdm import tqdm
+
+adata = adataSub.copy()
+label = 'leiden'
+for combo in tqdm([['MME']]):
+    surfaceIdx = np.where(adata.var.index.isin(combo))[0]
+    X = adata.X[:, surfaceIdx]
+    y = adata.obs[label].astype('int')
+    clf = RidgeClassifier().fit(X,y)
+    # The score is the accuracy when predicting cluster identity
+    score = clf.score(X, y)
+    
+    y_score = clf.decision_function(X)
+    fpr, tpr, _ = metrics.roc_curve(y, y_score)
+    auc = metrics.auc(fpr, tpr)
+
+    # Cluster with highest expression
+    cluster = pd.DataFrame(X).set_index(y).groupby('leiden').mean().reset_index().idxmax(0)[0]
+
+    isClust = np.where(y == cluster)[0]
+    percentAboveThresh = np.sum(clf.predict(X[isClust]) == cluster)/len(isClust)
+
+    medExpr = np.median(X[isClust])
+# %%
+sc.pl.umap(adata, color = 'leiden')
+visualization.plotHists(adata, gene = 'MME')

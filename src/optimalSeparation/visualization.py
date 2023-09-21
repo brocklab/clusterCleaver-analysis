@@ -14,7 +14,7 @@ def plotExpression(adata, genes, colorCol = 'leiden'):
     dfExpr.columns = [genes[0], genes[1], 'leiden']
     sns.scatterplot(data = dfExpr, x = genes[0], y = genes[1], hue = 'leiden')
     
-def plotHists(adata, gene, colorCol = 'leiden'):
+def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
     surfaceIdx = np.where(adata.var.index.isin([gene]))[0][0]
     expression = adata.X[:, surfaceIdx]
     if scipy.sparse.issparse(expression):
@@ -25,7 +25,12 @@ def plotHists(adata, gene, colorCol = 'leiden'):
 
     # , log_scale=(False, True)
     
-    sns.histplot(data=dfHist, x='expression', hue=colorCol, element="poly", stat='proportion').set(
+    sns.histplot(data=dfHist, 
+                 x='expression', 
+                 hue=colorCol, 
+                 element="poly", 
+                 stat='proportion',
+                 log_scale = (False, logScale)).set(
         xlabel = f'{gene} Expression'
     )
 
