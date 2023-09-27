@@ -43,10 +43,52 @@ for cellLine, adataSub in adatas.items():
 # %%
 cellLine = 'mdamb231'
 adata = adatas['mdamb231'].copy()
-label = 'leiden'
+surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
+optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
 
+# %%
+from scipy.stats import wasserstein_distance
+import warnings
+import itertools
+nGenes = 1
+nCombos = 10000
+
+def searchEMD(adata, surfaceGenes = surfaceGenes):
+    scGenes = np.array(adata.var.index)
+
+    availableGenes = [gene for gene in surfaceGenes['gene'] if gene in scGenes]
+    surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
+
+    if len(surfaceCombos) > nCombos:
+        warnings.warn('The number of combos generated is beyond the set maximum number of combos. Was this intentional?')
+    print(f'Searching for {len(surfaceCombos)} combinations of {nGenes} gene(s)')
+    comboScores = []
+
+    is0 = adata.obs['leiden'] == '0'
+    is1 = adata.obs['leiden'] == '1'
+    for combo in tqdm(surfaceCombos):
+        surfaceIdx = np.where(adata.var.index.isin(combo))[0]
+        X = adata.X[:, surfaceIdx]
+        X0 = X[is0, :].ravel()
+        X1 = X[is1, :].ravel()
+        dist = wasserstein_distance(X0, X1)
+        comboScores.append(dist)
+
+    distDf = pd.DataFrame({'gene': np.array(surfaceCombos).ravel(), 'scores': comboScores})
+    distDf = distDf.sort_values(by = 'scores', ascending = False).reset_index(drop = True)
+    return distDf
+
+distDf = searchEMD(adata)
+# %%
+optimalScores = searchOptimal.searchGeneSeparation(adatas['mdamb231'], surfaceGenes['gene'])
+# %%
+nGenes = 10
+inter = set(distDf['gene'].tolist()[0:nGenes]) & set(optimalScores['gene1'].tolist()[0:nGenes])
+# %%
+label = 'leiden'
+genes = ['ESAM', 'THBS1']
 adata.obs[label] = adata.obs[label].astype("string")
-for combo in tqdm([['ESAM']]):
+for combo in tqdm([genes]):
     surfaceIdx = np.where(adata.var.index.isin(combo))[0]
     X = adata.X[:, surfaceIdx]
     y = adata.obs[label].astype('int')
@@ -68,8 +110,21 @@ for combo in tqdm([['ESAM']]):
     medExpr = np.median(X[isClust])
 
 # %%
-plt.plot(threshold, precisions[0:-1], 'b--')
-plt.plot(threshold, recalls[0:-1], 'g')
+plt.rcParams["figure.figsize"] = (8, 4)
+plt.subplot(121)
+plt.plot(threshold, precisions[0:-1], 'b--', label = 'precision')
+plt.plot(threshold, recalls[0:-1], 'g', label = 'recall')
+plt.xlabel('Threshold values')
+plt.legend()
+plt.subplot(122)
+if X.shape[1] == 2:
+    visualization.plotExpression(adata, genes = genes)
+elif X.shape[1] == 1:
+    visualization.plotHists(adata, gene = genes)
+# %%
+df = clf.decision_function(X)
+dfThresh = 1
+
 # %%
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 

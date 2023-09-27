@@ -36,7 +36,7 @@ def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
         surfaceIdx = np.where(adata.var.index.isin(combo))[0]
         X = adata.X[:, surfaceIdx]
         y = adata.obs[label].astype('int')
-        clf = RidgeClassifier(class_weight='balanced').fit(X,y)
+        clf = RidgeClassifier().fit(X,y)
         # The score is the accuracy when predicting cluster identity
         score = clf.score(X, y)
         

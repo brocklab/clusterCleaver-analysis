@@ -198,3 +198,4 @@ figures/
 /notebooks/cometSC/**
 /workflow/Snakefile
 cache/
+/env*/
