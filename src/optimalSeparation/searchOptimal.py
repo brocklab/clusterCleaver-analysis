@@ -7,6 +7,7 @@ import pandas as pd
 import itertools
 import warnings
 from scipy.sparse import issparse
+from scipy.stats import wasserstein_distance
 
 def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCombos = 10000):
     """
@@ -146,3 +147,88 @@ def findOptimalSurfaceMarkers(dfScores, metric = 'auc', nGenes = 1):
     paretoIdx = paretoOptimal(costs)
 
     return dfScores.iloc[paretoIdx]
+
+def sliced_wasserstein(X, Y, num_proj = 1000):
+    """
+    Computes the average sliced wasserstein distance for two arrays
+
+    Inputs:
+    X, Y: Input arrays (must have same number o columns)
+    num_proj: Number of samples to compute distances
+
+    Outputs:
+    Mean wasserstein distance
+
+    Notes:
+    This was originally taken from
+    https://stats.stackexchange.com/questions/404775/calculate-earth-movers-distance-for-two-grayscale-images
+    based on the python optimal transport (POT) package.
+    """
+    dim = X.shape[1]
+    ests = []
+    for _ in range(num_proj):
+        # sample uniformly from the unit sphere
+        dir = np.random.randn(dim)
+        dir /= np.linalg.norm(dir)
+
+        # project the data
+        X_proj = X @ dir
+        Y_proj = Y @ dir
+
+        # compute 1d wasserstein
+        ests.append(wasserstein_distance(X_proj, Y_proj))
+    return np.mean(ests)
+
+def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCombos = 10000):
+    """
+    Computes the wasserstein (earth mover's distance) metric on gene expression data
+
+    Inputs:
+        - adata: Anndata object with .obs consisting of numeric leiden cluster column
+        - surfaceGenes: List of surface genes to compare
+        - label: Column name in .obs containing label identities
+        - nGenes: Number of genes to search through 
+    Outputs:
+        - dfScores: Modified surface genes dataframe with a new separation score    
+    """
+    if nGenes > 1:
+        dfScores1 = searchExpressionDist(adata, surfaceGenes, label, nGenes = 1, nCombos = nCombos)
+        surfaceGenes = dfScores1['genes'][0:100].tolist()
+
+    if issparse(adata.X):
+        adata.X = adata.X.toarray()
+    scGenes = np.array(adata.var.index)
+
+    availableGenes = [gene for gene in surfaceGenes if gene in scGenes]
+    surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
+
+    if len(surfaceCombos) > nCombos:
+        warnings.warn('The number of combos generated is beyond the set maximum number of combos. Was this intentional?')
+    print(f'Searching for {len(surfaceCombos)} combinations of {nGenes} gene(s)')
+    comboScores = []
+    
+    adata.obs[label] = adata.obs[label].astype("string")
+
+    is0 = np.array(adata.obs[label] == '0').astype(bool)
+    is1 = np.array(adata.obs[label] == '1').astype(bool)
+    for combo in tqdm(surfaceCombos):
+        surfaceIdx = np.where(adata.var.index.isin(combo))[0]
+        X = adata.X[:, surfaceIdx]
+        X0 = X[is0, :]
+        X1 = X[is1, :]
+        if nGenes == 1:
+            X0 = X0.ravel()
+            X1 = X1.ravel()
+
+        if nGenes == 1:
+            dist = wasserstein_distance(X0, X1)
+        elif nGenes > 1:
+            dist = sliced_wasserstein(X0, X1, num_proj = 50)
+        comboScores.append(dist)     
+    if nGenes == 1:   
+        dfScores = pd.DataFrame({'genes': np.array(surfaceCombos).ravel(), 'scores': comboScores})
+    else:
+        geneDict = {f'gene{num+1}': np.array(surfaceCombos)[:, num] for num in range(0, nGenes)}
+        geneDict['scores'] = comboScores
+        dfScores = pd.DataFrame(geneDict)
+    return dfScores.sort_values(by = 'scores', ascending = False)

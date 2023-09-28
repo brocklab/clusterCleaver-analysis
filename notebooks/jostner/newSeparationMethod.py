@@ -5,9 +5,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+from scipy.stats import wasserstein_distance
 
 from sklearn.linear_model import RidgeClassifier
 from sklearn import metrics
+
 
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
@@ -47,46 +49,17 @@ surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
 
 # %%
-from scipy.stats import wasserstein_distance
-import warnings
-import itertools
-nGenes = 1
-nCombos = 10000
+# optimal231_1 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
+optimal231_2 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes=2)
 
-def searchEMD(adata, surfaceGenes = surfaceGenes):
-    scGenes = np.array(adata.var.index)
-
-    availableGenes = [gene for gene in surfaceGenes['gene'] if gene in scGenes]
-    surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
-
-    if len(surfaceCombos) > nCombos:
-        warnings.warn('The number of combos generated is beyond the set maximum number of combos. Was this intentional?')
-    print(f'Searching for {len(surfaceCombos)} combinations of {nGenes} gene(s)')
-    comboScores = []
-
-    is0 = adata.obs['leiden'] == '0'
-    is1 = adata.obs['leiden'] == '1'
-    for combo in tqdm(surfaceCombos):
-        surfaceIdx = np.where(adata.var.index.isin(combo))[0]
-        X = adata.X[:, surfaceIdx]
-        X0 = X[is0, :].ravel()
-        X1 = X[is1, :].ravel()
-        dist = wasserstein_distance(X0, X1)
-        comboScores.append(dist)
-
-    distDf = pd.DataFrame({'gene': np.array(surfaceCombos).ravel(), 'scores': comboScores})
-    distDf = distDf.sort_values(by = 'scores', ascending = False).reset_index(drop = True)
-    return distDf
-
-distDf = searchEMD(adata)
 # %%
 optimalScores = searchOptimal.searchGeneSeparation(adatas['mdamb231'], surfaceGenes['gene'])
 # %%
 nGenes = 10
-inter = set(distDf['gene'].tolist()[0:nGenes]) & set(optimalScores['gene1'].tolist()[0:nGenes])
+# inter = set(distDf['gene'].tolist()[0:nGenes]) & set(optimalScores['gene1'].tolist()[0:nGenes])
 # %%
 label = 'leiden'
-genes = ['ESAM', 'THBS1']
+genes = ['TM9SF3', 'CAV1', 'THBS1']
 adata.obs[label] = adata.obs[label].astype("string")
 for combo in tqdm([genes]):
     surfaceIdx = np.where(adata.var.index.isin(combo))[0]
@@ -121,12 +94,46 @@ if X.shape[1] == 2:
     visualization.plotExpression(adata, genes = genes)
 elif X.shape[1] == 1:
     visualization.plotHists(adata, gene = genes)
-# %%
-df = clf.decision_function(X)
-dfThresh = 1
+# %% Sliced wasserstein
+%%timeit
+def sliced_wasserstein(X, Y, num_proj):
+    dim = X.shape[1]
+    ests = []
+    for _ in range(num_proj):
+        # sample uniformly from the unit sphere
+        dir = np.random.randn(dim)
+        dir /= np.linalg.norm(dir)
 
-# %%
-surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
+        # project the data
+        X_proj = X @ dir
+        Y_proj = Y @ dir
 
-searchOptimal.searchGeneSeparation(adatas['mdamb231'], surfaceGenes['gene'])
+        # compute 1d wasserstein
+        ests.append(wasserstein_distance(X_proj, Y_proj))
+    return np.mean(ests)
+is0 = np.array(adata.obs['leiden'] == '0').astype(bool)
+is1 = np.array(adata.obs['leiden'] == '1').astype(bool)
+
+X0 = X[is0, :]
+X1 = X[is1, :]
+
+res = sliced_wasserstein(X0, X1, 10000)
+
+print(res)
+
+# %% Vectorize sliced wasserstein
+%%timeit
+dim = X0.shape[1]
+ests = []
+# sample uniformly from the unit sphere
+dir1 = np.random.randn(dim, 10000)
+dir2 = np.divide(dir1, np.linalg.norm(dir1, axis = 0))
+
+X0_proj = np.matmul(X0, dir2)
+X1_proj = np.matmul(X1, dir2)
+
+ests = []
+for i in range(10000):
+    ests.append(wasserstein_distance(X0_proj[:, i], X1_proj[:, i]))
+ests = np.mean(ests)
 # %%
