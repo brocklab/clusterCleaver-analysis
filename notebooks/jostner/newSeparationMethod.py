@@ -49,6 +49,84 @@ surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
 
 # %%
+def vectorizedSearchSorted(a, b):
+    """
+    A vectorized implementation of the numpy function `searchsorted`.
+    This is a columnwise implementation
+    """
+    m,n = a.shape
+    max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
+    r = max_num*np.arange(a.shape[1])[None,:]
+    p = np.searchsorted((a+r).ravel(order = 'F'), (b+r).ravel(order = 'F'), 'right').reshape(-1, n, order = 'F')
+    res = p - m*(np.arange(n))
+    return res
+    # z = res
+    # print(z)
+def vectorizedWasserstein(u_values, v_values):
+    """
+    Computes the wasserstein distance for two values. This is based heavily
+    on the scipy code, however it does not have weights. 
+
+    Note: Wasserstein distances are currently only evaluated over columns, there is no axis value
+
+    Inputs:
+    u_values, v_values: Matrices to be computed
+
+    Outputs:
+    distance: Computed columnwise distance
+    """
+    u_sorter = np.argsort(u_values, axis = 0)
+    v_sorter = np.argsort(v_values, axis = 0)
+
+    all_values = np.concatenate((u_values, v_values), axis = 0)
+    all_values.sort(kind='mergesort', axis = 0)
+
+    # Compute the differences between pairs of successive values of u and v.
+    deltas = np.diff(all_values, axis = 0)
+    # Get the respective positions of the values of u and v among the values of
+    # both distributions.
+
+    u_values.sort(axis = 0)
+    v_values.sort(axis = 0)
+
+    u_cdf_indices = vectorizedSearchSorted(u_values, all_values[:-1])
+    v_cdf_indices = vectorizedSearchSorted(v_values, all_values[:-1])
+
+    # Calculate the CDFs of u and v using their weights, if specified.
+    u_cdf = u_cdf_indices / u_values.shape[0]
+
+    v_cdf = v_cdf_indices / v_values.shape[0]
+
+
+    wd = np.sum(np.multiply(np.abs(u_cdf - v_cdf), deltas), axis = 0)
+
+    return wd
+
+
+# %%
+surfaceCombos = []
+label = 'leiden'
+nGenes = 2
+adata.obs[label] = adata.obs[label].astype("string")
+
+is0 = np.array(adata.obs[label] == '0').astype(bool)
+is1 = np.array(adata.obs[label] == '1').astype(bool)
+for combo in tqdm(surfaceCombos):
+    surfaceIdx = np.where(adata.var.index.isin(combo))[0]
+    X = adata.X[:, surfaceIdx]
+    X0 = X[is0, :]
+    X1 = X[is1, :]
+    if nGenes == 1:
+        X0 = X0.ravel()
+        X1 = X1.ravel()
+
+    if nGenes == 1:
+        dist = wasserstein_distance(X0, X1)
+    elif nGenes > 1:
+        dist = sliced_wasserstein(X0, X1, num_proj = 50)
+    comboScores.append(dist)
+
+# %%
 # optimal231_1 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
 optimal231_2 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes=2)
 
