@@ -41,6 +41,10 @@ v_values.sort(axis = 0)
 u_cdf_indices = np.array([np.searchsorted(u_values[:, i], all_values[:-1, i], 'right') for i in range(all_values.shape[1])]).T
 v_cdf_indices = np.array([np.searchsorted(v_values[:, i], all_values[:-1, i], 'right') for i in range(all_values.shape[1])]).T
 
+u_cdf_indices_2 = 0
+v_cdf_indices_2 = 0
+
+
 # for i in range(0, all_values.shape[1]):
 #     u_cdf_indices = np.searchsorted(u_values[:, i][u_sorter[:, i]],all_values[:-1, i],side="r") 
 
@@ -88,3 +92,17 @@ u_cdf_indices = u_values.searchsorted(all_values[:-1], 'right')
 v_cdf_indices = v_values.searchsorted(all_values[:-1], 'right')
 
 u_cdf_indices / u_values.size
+
+# %% Fix searchsorted
+
+a = u_values.T.copy()
+b = all_values[:-1, :].T.copy()
+
+m,n = a.shape
+max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
+r = max_num*np.arange(a.shape[0])[:,None]
+p = np.searchsorted( (a+r).ravel(), (b+r).ravel() ).reshape(m,-1)
+res = p - n*(np.arange(m)[:,None]).T
+
+assert(np.all(u_cdf_indices == res.T+1))
+# %%
