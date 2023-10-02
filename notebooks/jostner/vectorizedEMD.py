@@ -132,7 +132,7 @@ print(vectorizedWasserstein(x[:,None], y[:,None]))
 print(wasserstein2d(x[:,None], y[:,None]))
 # %%
 x = np.random.randn(1000, 2)
-y = x
+y = np.random.randn(2000, 2)
 
 # print(wasserstein_distance(x, y))
 print(vectorizedWasserstein(x, y))

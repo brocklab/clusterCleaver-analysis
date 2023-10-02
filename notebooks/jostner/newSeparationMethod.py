@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 from scipy.stats import wasserstein_distance
+import time
 
 from sklearn.linear_model import RidgeClassifier
 from sklearn import metrics
@@ -57,11 +58,11 @@ def vectorizedSearchSorted(a, b):
     m,n = a.shape
     max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
     r = max_num*np.arange(a.shape[1])[None,:]
+    print("\t\t np.searchsorted")
     p = np.searchsorted((a+r).ravel(order = 'F'), (b+r).ravel(order = 'F'), 'right').reshape(-1, n, order = 'F')
     res = p - m*(np.arange(n))
     return res
-    # z = res
-    # print(z)
+    
 def vectorizedWasserstein(u_values, v_values):
     """
     Computes the wasserstein distance for two values. This is based heavily
@@ -75,9 +76,6 @@ def vectorizedWasserstein(u_values, v_values):
     Outputs:
     distance: Computed columnwise distance
     """
-    u_sorter = np.argsort(u_values, axis = 0)
-    v_sorter = np.argsort(v_values, axis = 0)
-
     all_values = np.concatenate((u_values, v_values), axis = 0)
     all_values.sort(kind='mergesort', axis = 0)
 
@@ -85,13 +83,14 @@ def vectorizedWasserstein(u_values, v_values):
     deltas = np.diff(all_values, axis = 0)
     # Get the respective positions of the values of u and v among the values of
     # both distributions.
-
+    print(f'\tSorting')
     u_values.sort(axis = 0)
     v_values.sort(axis = 0)
 
+    print(f'\tsearch sorting')
     u_cdf_indices = vectorizedSearchSorted(u_values, all_values[:-1])
     v_cdf_indices = vectorizedSearchSorted(v_values, all_values[:-1])
-
+    print("\tDone")
     # Calculate the CDFs of u and v using their weights, if specified.
     u_cdf = u_cdf_indices / u_values.shape[0]
 
@@ -104,7 +103,7 @@ def vectorizedWasserstein(u_values, v_values):
 
 
 # %%
-surfaceCombos = []
+surfaceCombos = [['ESAM', 'THBS1']]
 label = 'leiden'
 nGenes = 2
 adata.obs[label] = adata.obs[label].astype("string")
@@ -119,13 +118,31 @@ for combo in tqdm(surfaceCombos):
     if nGenes == 1:
         X0 = X0.ravel()
         X1 = X1.ravel()
-
+    break
     if nGenes == 1:
         dist = wasserstein_distance(X0, X1)
     elif nGenes > 1:
         dist = sliced_wasserstein(X0, X1, num_proj = 50)
     comboScores.append(dist)
+# %%
+num_proj = 10000
+def vectorizedSlicedWasserstein(X, Y, num_proj):
+    dim = X.shape[1]
+    dir = np.random.randn(num_proj, dim)
+    dirNorm = dir / np.linalg.norm(dir, axis = 1)[:, None]
+    print('Projecting')
+    # project the data
+    X_proj = X @ dirNorm.T
+    Y_proj = Y @ dirNorm.T
+    print('Wassersteining')
+    wass = vectorizedWasserstein(X_proj, Y_proj)
+    print('Done')
+    return np.mean(wass)
 
+t = time.time()
+res = vectorizedSlicedWasserstein(X0, X1, num_proj)
+print(f'Took {time.time() - t:0.4f} seconds')
+print(res)
 # %%
 # optimal231_1 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
 optimal231_2 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes=2)
@@ -189,15 +206,9 @@ def sliced_wasserstein(X, Y, num_proj):
         # compute 1d wasserstein
         ests.append(wasserstein_distance(X_proj, Y_proj))
     return np.mean(ests)
-is0 = np.array(adata.obs['leiden'] == '0').astype(bool)
-is1 = np.array(adata.obs['leiden'] == '1').astype(bool)
-
-X0 = X[is0, :]
-X1 = X[is1, :]
 
 res = sliced_wasserstein(X0, X1, 10000)
 
-print(res)
 
 # %% Vectorize sliced wasserstein
 %%timeit

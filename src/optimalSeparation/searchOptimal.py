@@ -166,18 +166,17 @@ def sliced_wasserstein(X, Y, num_proj = 1000):
     """
     dim = X.shape[1]
     ests = []
-    for _ in range(num_proj):
-        # sample uniformly from the unit sphere
-        dir = np.random.randn(dim)
-        dir /= np.linalg.norm(dir)
+    # sample uniformly from the unit sphere
+    dir1 = np.random.randn(dim, num_proj)
+    dir2 = np.divide(dir1, np.linalg.norm(dir1, axis = 0))
 
-        # project the data
-        X_proj = X @ dir
-        Y_proj = Y @ dir
+    X0_proj = np.matmul(X, dir2)
+    X1_proj = np.matmul(Y, dir2)
 
-        # compute 1d wasserstein
-        ests.append(wasserstein_distance(X_proj, Y_proj))
-    return np.mean(ests)
+    ests = []
+    for i in range(num_proj):
+        ests.append(wasserstein_distance(X0_proj[:, i], X1_proj[:, i]))
+    ests = np.mean(ests)
 
 def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCombos = 10000):
     """
