@@ -144,6 +144,23 @@ res = vectorizedSlicedWasserstein(X0, X1, num_proj)
 print(f'Took {time.time() - t:0.4f} seconds')
 print(res)
 # %%
+t = time.time()
+dim = X0.shape[1]
+ests = []
+# sample uniformly from the unit sphere
+dir1 = np.random.randn(dim, 10000)
+dir2 = np.divide(dir1, np.linalg.norm(dir1, axis = 0))
+
+X0_proj = np.matmul(X0, dir2)
+X1_proj = np.matmul(X1, dir2)
+
+ests = []
+for i in range(num_proj):
+    ests.append(vectorizedWasserstein(X0_proj[:, i][:,None], X1_proj[:, i][:,None]))
+ests = np.mean(ests)
+print(f'Took {time.time() - t:0.4f} seconds')
+print(ests)
+# %%
 # optimal231_1 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
 optimal231_2 = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes=2)
 
@@ -190,7 +207,7 @@ if X.shape[1] == 2:
 elif X.shape[1] == 1:
     visualization.plotHists(adata, gene = genes)
 # %% Sliced wasserstein
-%%timeit
+n_proj = 100
 def sliced_wasserstein(X, Y, num_proj):
     dim = X.shape[1]
     ests = []
@@ -206,23 +223,24 @@ def sliced_wasserstein(X, Y, num_proj):
         # compute 1d wasserstein
         ests.append(wasserstein_distance(X_proj, Y_proj))
     return np.mean(ests)
-
-res = sliced_wasserstein(X0, X1, 10000)
-
-
+t = time.time()
+res = sliced_wasserstein(X0, X1, n_proj)
+print(f'Took {time.time() - t:0.5f} seconds\nres = {res:.04f}')
 # %% Vectorize sliced wasserstein
-%%timeit
+n_proj = 100
+t = time.time()
 dim = X0.shape[1]
 ests = []
 # sample uniformly from the unit sphere
-dir1 = np.random.randn(dim, 10000)
+dir1 = np.random.randn(dim, n_proj)
 dir2 = np.divide(dir1, np.linalg.norm(dir1, axis = 0))
 
 X0_proj = np.matmul(X0, dir2)
 X1_proj = np.matmul(X1, dir2)
 
 ests = []
-for i in range(10000):
+for i in range(n_proj):
     ests.append(wasserstein_distance(X0_proj[:, i], X1_proj[:, i]))
 ests = np.mean(ests)
+print(f'Took {time.time() - t:0.5f} seconds\nres = {ests:.04f}')
 # %%
