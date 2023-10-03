@@ -57,17 +57,17 @@ cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38', 'mdamb436']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
     adata = adatas[cellLine]
-    optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
+    # optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
     # optimalGenesSurface = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalGenes, nGenes = 1)
     # optimalGenesPareto = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface)
     emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
 
 
-    optimalCombos = searchOptimal.searchSeparation2(adata, optimalGenes, nGenes = 75)
+    # optimalCombos = searchOptimal.searchSeparation2(adata, optimalGenes, nGenes = 75)
     # optimalGenesSurface2 = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalCombos, nGenes = 2)
     # optimalGenesPareto2 = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface2, nGenes = 2)
     emdCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = emdGenes['genes'][0:75].tolist())
-    
+    break
 
     optimalGenes['cellLine'] = cellLine
     optimalCombos['cellLine'] = cellLine
@@ -81,13 +81,36 @@ for cellLine in cellLines:
     allEMDGenes.append(allEMDGenes)
     allEMDCombos.append(allEMDCombos)
 # %%
-allOptimalGenes = pd.concat(allOptimalGenes)
-allOptimalCombos = pd.concat(allOptimalCombos)
-allEMDGenes = pd.concat(allEMDGenes)
-allEMDCombos = pd.concat(allEMDCombos)
+emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
 # %%
-allOptimalGenes.to_csv('../../data/optimalGenes/allOptimalGenes.csv')
-allOptimalCombos.to_csv('../../data/optimalGenes/allOptimalCombos.csv')
-allEMDGenes.to_csv('../../data/optimalGenes/allEMDGenes.csv')
-allEMDCombos.to_csv('../../data/optimalGenes/allEMDCombos.csv')
+allOptimalGenesConcat = pd.concat(allOptimalGenes)
+allOptimalCombosConcat = pd.concat(allOptimalCombos)
+allEMDGenesConcat = pd.concat(allEMDGenes)
+allEMDCombosConcat = pd.concat(allEMDCombos)
+# %%
+allOptimalGenesConcat.to_csv('../../data/optimalGenes/allOptimalGenes.csv')
+allOptimalCombosConcat.to_csv('../../data/optimalGenes/allOptimalCombos.csv')
+allEMDGenesConcat.to_csv('../../data/optimalGenes/allEMDGenes.csv')
+allEMDCombosConcat.to_csv('../../data/optimalGenes/allEMDCombos.csv')
+# %%
+allOptimalGenesConcat = pd.read_csv('../../data/optimalGenes/allOptimalGenes.csv', index_col = 0 )
+allOptimalCombosConcat = pd.read_csv('../../data/optimalGenes/allOptimalCombos.csv', index_col = 0 )
+allEMDGenesConcat = pd.read_csv('../../data/optimalGenes/allEMDGenes.csv', index_col = 0 )
+allEMDCombosConcat = pd.read_csv('../../data/optimalGenes/allEMDCombos.csv', index_col = 0 )
+# %%
+for cellLine in allOptimalGenesConcat['cellLine'].unique():
+    optimalGenes = allOptimalGenesConcat.loc[allOptimalGenesConcat['cellLine'] == cellLine].reset_index(drop = True)
+    emdGenes = allEMDGenesConcat.loc[allEMDGenesConcat['cellLine'] == cellLine].reset_index(drop = True)
+
+    topOptimal = optimalGenes.iloc[0:10]['gene1'].tolist()
+    topEMD = emdGenes.iloc[0:10]['genes'].tolist()
+
+    nShared = len(set(topOptimal) & set(topEMD))
+    print(f'{cellLine} : {nShared} shared between top 10')
+# %%
+cellLine = 'bt474'
+optimalGenes = allOptimalCombosConcat.loc[allOptimalCombosConcat['cellLine'] == cellLine].reset_index(drop = True)
+emdGenes = allEMDCombosConcat.loc[allEMDCombosConcat['cellLine'] == cellLine].reset_index(drop = True)
+# %%
+visualization.plotExpression(adatas['bt474'], genes = ['HMMR', 'ERBB2'])
 # %%

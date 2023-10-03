@@ -12,7 +12,7 @@ def plotExpression(adata, genes, colorCol = 'leiden'):
     
     dfExpr = pd.DataFrame([X[:,0], X[:, 1], adata.obs['leiden']]).T
     dfExpr.columns = [genes[0], genes[1], 'leiden']
-    sns.scatterplot(data = dfExpr, x = genes[0], y = genes[1], hue = 'leiden')
+    sns.jointplot(data = dfExpr, x = genes[0], y = genes[1], hue = 'leiden')
     
 def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
     surfaceIdx = np.where(adata.var.index.isin([gene]))[0][0]

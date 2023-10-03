@@ -191,6 +191,7 @@ def vectorizedSearchSorted(a, b):
     return res
     # z = res
     # print(z)
+
 def vectorizedWasserstein(u_values, v_values):
     """
     Computes the wasserstein distance for two values. This is based heavily
@@ -231,7 +232,7 @@ def vectorizedWasserstein(u_values, v_values):
 
     return wd
 
-def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCombos = 10000, topGenes = []):
+def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTopGenes = 50, maxCombos = 10000, topGenes = []):
     """
     Computes the wasserstein (earth mover's distance) metric on gene expression data
 
@@ -244,10 +245,17 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
         - dfScores: Modified surface genes dataframe with a new separation score    
     """
     if nGenes > 1 and len(topGenes) == 0:
-        dfScores1 = searchExpressionDist(adata, surfaceGenes, label, nGenes = 1, nCombos = nCombos)
-        surfaceGenes = dfScores1['genes'][0:75].tolist()
+        dfScores1 = searchExpressionDist(adata, surfaceGenes, label, nGenes = 1, maxCombos = maxCombos, nCombos = 50)
+        clusters = dfScores1['cluster'].unique()
+        assert len(clusters) == 2
+        genes1 = dfScores1.loc[dfScores1['cluster'] == clusters[0], 'gene1'][0:nTopGenes]
+        genes2 = dfScores1.loc[dfScores1['cluster'] == clusters[1], 'gene1'][0:nTopGenes]
+        surfaceCombos = list(itertools.product(genes1, genes2))
+
     elif len(topGenes) > 0:
         surfaceGenes = topGenes
+        availableGenes = [gene for gene in surfaceGenes if gene in scGenes]
+        surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
         
     if issparse(adata.X):
         adata.X = adata.X.toarray()
@@ -256,11 +264,12 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
     availableGenes = [gene for gene in surfaceGenes if gene in scGenes]
     surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
 
-    if len(surfaceCombos) > nCombos:
+
+    if len(surfaceCombos) > maxCombos:
         warnings.warn('The number of combos generated is beyond the set maximum number of combos. Was this intentional?')
     print(f'Searching for {len(surfaceCombos)} combinations of {nGenes} gene(s)')
     comboScores = []
-    
+    expressedClusters = []
     adata.obs[label] = adata.obs[label].astype("string")
 
     is0 = np.array(adata.obs[label] == '0').astype(bool)
@@ -273,14 +282,21 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
         if nGenes == 1:
             X0 = X0.ravel()
             X1 = X1.ravel()
-
+            if np.median(X0) > np.median(X1):
+                cluster = '0'
+            else:
+                cluster = '1'
+        else:
+            cluster = -1
+        
         if nGenes == 1:
             dist = wasserstein_distance(X0, X1)
         elif nGenes > 1:
             dist = sliced_wasserstein(X0, X1, num_proj = 50)
-        comboScores.append(dist)     
+        comboScores.append(dist)
+        expressedClusters.append(cluster)   
     if nGenes == 1:   
-        dfScores = pd.DataFrame({'genes': np.array(surfaceCombos).ravel(), 'scores': comboScores})
+        dfScores = pd.DataFrame({'genes': np.array(surfaceCombos).ravel(), 'scores': comboScores, 'cluster': cluster})
     else:
         geneDict = {f'gene{num+1}': np.array(surfaceCombos)[:, num] for num in range(0, nGenes)}
         geneDict['scores'] = comboScores
