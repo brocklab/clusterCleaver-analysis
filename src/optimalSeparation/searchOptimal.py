@@ -46,7 +46,7 @@ def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCom
         auc = metrics.auc(fpr, tpr)
 
         # Cluster with highest expression
-        cluster = pd.DataFrame(X).set_index(y).groupby('leiden').mean().reset_index().idxmax(0)[0]
+        cluster = pd.DataFrame(X).set_index(y).groupby(label).mean().reset_index().idxmax(0)[0]
 
         isClust = np.where(y == cluster)[0]
         percentAboveThresh = np.sum(clf.predict(X[isClust]) == cluster)/len(isClust)
@@ -87,7 +87,7 @@ def searchSeparation2(adata, dfScores, label = 'leiden', metric = 'auc', nGenes 
         fpr, tpr, _ = metrics.roc_curve(y, y_score)
         auc = metrics.auc(fpr, tpr)
 
-        cluster = pd.DataFrame(X).set_index(y).groupby('leiden').mean().reset_index().idxmax(0)[0]
+        cluster = pd.DataFrame(X).set_index(y).groupby(label).mean().reset_index().idxmax(0)[0]
         
         medExpr = np.median(X)
         
@@ -232,7 +232,7 @@ def vectorizedWasserstein(u_values, v_values):
 
     return wd
 
-def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTopGenes = 50, maxCombos = 10000, topGenes = []):
+def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = []):
     """
     Computes the wasserstein (earth mover's distance) metric on gene expression data
 
@@ -244,6 +244,10 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTop
     Outputs:
         - dfScores: Modified surface genes dataframe with a new separation score    
     """
+    if issparse(adata.X):
+        adata.X = adata.X.toarray()
+    scGenes = np.array(adata.var.index)
+
     if nGenes > 1 and len(topGenes) == 0:
         dfScores1 = searchExpressionDist(adata, surfaceGenes, label, nGenes = 1, maxCombos = maxCombos, nCombos = 50)
         clusters = dfScores1['cluster'].unique()
@@ -257,9 +261,7 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTop
         availableGenes = [gene for gene in surfaceGenes if gene in scGenes]
         surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
         
-    if issparse(adata.X):
-        adata.X = adata.X.toarray()
-    scGenes = np.array(adata.var.index)
+
 
     availableGenes = [gene for gene in surfaceGenes if gene in scGenes]
     surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
@@ -282,7 +284,7 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTop
         if nGenes == 1:
             X0 = X0.ravel()
             X1 = X1.ravel()
-            if np.median(X0) > np.median(X1):
+            if np.mean(X0) > np.mean(X1):
                 cluster = '0'
             else:
                 cluster = '1'
@@ -296,7 +298,7 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTop
         comboScores.append(dist)
         expressedClusters.append(cluster)   
     if nGenes == 1:   
-        dfScores = pd.DataFrame({'genes': np.array(surfaceCombos).ravel(), 'scores': comboScores, 'cluster': cluster})
+        dfScores = pd.DataFrame({'genes': np.array(surfaceCombos).ravel(), 'scores': comboScores, 'cluster': expressedClusters})
     else:
         geneDict = {f'gene{num+1}': np.array(surfaceCombos)[:, num] for num in range(0, nGenes)}
         geneDict['scores'] = comboScores
