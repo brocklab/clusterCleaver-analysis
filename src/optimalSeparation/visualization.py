@@ -20,8 +20,8 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
     if scipy.sparse.issparse(expression):
         expression = expression.toarray()
 
-    dfHist = pd.DataFrame(expression, adata.obs['leiden']).reset_index()
-    dfHist.columns = ['leiden', 'expression']
+    dfHist = pd.DataFrame(expression, adata.obs[colorCol]).reset_index()
+    dfHist.columns = [colorCol, 'expression']
 
     # , log_scale=(False, True)
     

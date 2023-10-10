@@ -11,7 +11,6 @@ import time
 from sklearn.linear_model import RidgeClassifier
 from sklearn import metrics
 
-
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
 # %%
@@ -56,11 +55,15 @@ while nLeiden != 3:
     if c > 20:
         leidenResolution = 0
         break
+cellLineRes['hcc38'] = leidenResolution
 # %%
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
 allOptimalGenes, allEMDGenes, allOptimalCombos, allEMDCombos = [], [], [], []
+emdGenesDict = {}
 for cluster in adata.obs['leiden'].unique():
+    allClusts = adata.obs['leiden'].unique().tolist()
+
     isClust = adata.obs['leiden'] == cluster
     notClust = adata.obs['leiden'] != cluster
 
@@ -71,30 +74,50 @@ for cluster in adata.obs['leiden'].unique():
     optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'], label = 'newLeiden')
     emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], label = 'newLeiden')
 
-    optimalGenes.loc[optimalGenes['cluster'] == 1, 'cluster'] = cluster
-    emdGenes.loc[emdGenes['cluster'] == 1, 'cluster'] = cluster
+    allClusts.remove(cluster)
 
+    optimalGenes.loc[optimalGenes['cluster'] != 1, 'cluster'] = ', '.join(allClusts)
+    emdGenes.loc[emdGenes['cluster'] != '1', 'cluster'] = ', '.join(allClusts)
+
+    optimalGenes.loc[optimalGenes['cluster'] == 1, 'cluster'] = cluster
+    emdGenes.loc[emdGenes['cluster'] == '1', 'cluster'] = cluster
+
+    
     optimalCombos = searchOptimal.searchSeparation2(adata, optimalGenes, nGenes = 75, label = 'newLeiden')
     emdCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = emdGenes['genes'][0:75].tolist(), label = 'newLeiden')
     
     optimalCombos['cluster'] = cluster
     emdCombos['cluster'] = cluster
 
-    optimalGenes = optimalGenes.loc[optimalGenes['cluster'] == cluster,]
-    emdGenes = emdGenes.loc[emdGenes['cluster'] == cluster,]
-    optimalCombos = optimalCombos.loc[optimalCombos['cluster'] == cluster,]
-    emdCombos = emdCombos.loc[emdCombos['cluster'] == cluster,]
+
+
+
+    emdGenesDict[cluster] = emdGenes
+    # optimalGenes = optimalGenes.loc[optimalGenes['cluster'] == cluster,]
+    # emdGenes = emdGenes.loc[emdGenes['cluster'] == cluster,]
+    # optimalCombos = optimalCombos.loc[optimalCombos['cluster'] == cluster,]
+    # emdCombos = emdCombos.loc[emdCombos['cluster'] == cluster,]
 
     allOptimalGenes.append(optimalGenes)
     allEMDGenes.append(emdGenes)
     allOptimalCombos.append(optimalCombos)
     allEMDCombos.append(emdCombos)
 # %%
-pd.concat(allOptimalGenes).to_csv('../../data/optimalGenes/hcc38allOptimalGenes.csv')
-pd.concat(allEMDGenes).to_csv('../../data/optimalGenes/hcc38allEMDGenes.csv')
-pd.concat(allOptimalCombos).to_csv('../../data/optimalGenes/hcc38allOptimalCombos.csv')
-pd.concat(allEMDCombos).to_csv('../../data/optimalGenes/hcc38allEMDCombos.csv')
-
+allOptimalGenesConcat = pd.concat(allOptimalGenes)
+allEMDGenesConcat = pd.concat(allEMDGenes)
+allOptimalCombosConcat = pd.concat(allOptimalCombos)
+allEMDCombosConcat = pd.concat(allEMDCombos)
+# %%
+allOptimalGenesConcat.to_csv('../../data/optimalGenes/hcc38allOptimalGenes.csv')
+allEMDGenesConcat.to_csv('../../data/optimalGenes/hcc38allEMDGenes.csv')
+allOptimalCombosConcat.to_csv('../../data/optimalGenes/hcc38allOptimalCombos.csv')
+allEMDCombosConcat.to_csv('../../data/optimalGenes/hcc38allEMDCombos.csv')
+# %%
+allOptimalGenes = pd.read_csv('../../data/optimalGenes/hcc38allOptimalGenes.csv')
+allEMDGenes = pd.read_csv('../../data/optimalGenes/hcc38allEMDGenes.csv')
+allOptimalCombos = pd.read_csv('../../data/optimalGenes/hcc38allOptimalCombos.csv')
+allEMDCombos = pd.read_csv('../../data/optimalGenes/hcc38allEMDCombos.csv')
+# %%
 # %%
 expressions = np.arange(0.1, 2.5, 0.01)
 props, yields = [], []
@@ -113,6 +136,10 @@ for expression in expressions:
     props.append(prop1)
     yields.append(percentOfClust)
 # %%
+plt.figure()
+visualization.plotHists(adata, 'ESAM')
+
+plt.figure()
 plt.plot(expressions, props, label = 'Percentage of Identified Cells')
 plt.plot(expressions, yields, label = 'Percentage of Total Cluster')
 plt.xlabel('ESAM Expression Threshold')

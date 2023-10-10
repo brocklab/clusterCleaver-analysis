@@ -94,6 +94,9 @@ allOptimalCombosConcat = pd.read_csv('../../data/optimalGenes/allOptimalCombos.c
 allEMDGenesConcat = pd.read_csv('../../data/optimalGenes/allEMDGenes.csv', index_col = 0 )
 allEMDCombosConcat = pd.read_csv('../../data/optimalGenes/allEMDCombos.csv', index_col = 0 )
 # %%
+optim436 = allOptimalGenesConcat.loc[allOptimalGenesConcat['cellLine'] == 'mdamb436']
+emd436 = allEMDGenesConcat.loc[allEMDGenesConcat['cellLine'] == 'mdamb436']
+# %%
 for cellLine in allOptimalGenesConcat['cellLine'].unique():
     optimalGenes = allOptimalGenesConcat.loc[allOptimalGenesConcat['cellLine'] == cellLine].reset_index(drop = True)
     emdGenes = allEMDGenesConcat.loc[allEMDGenesConcat['cellLine'] == cellLine].reset_index(drop = True)
