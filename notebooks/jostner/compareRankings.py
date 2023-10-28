@@ -57,17 +57,15 @@ cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38', 'mdamb436']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
     adata = adatas[cellLine]
-    # optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
+    optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
     # optimalGenesSurface = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalGenes, nGenes = 1)
     # optimalGenesPareto = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface)
     emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
 
-
-    # optimalCombos = searchOptimal.searchSeparation2(adata, optimalGenes, nGenes = 75)
+    optimalCombos = searchOptimal.searchSeparation2(adata, optimalGenes, nGenes = 75)
     # optimalGenesSurface2 = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalCombos, nGenes = 2)
     # optimalGenesPareto2 = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface2, nGenes = 2)
     emdCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = emdGenes['genes'][0:75].tolist())
-    break
 
     optimalGenes['cellLine'] = cellLine
     optimalCombos['cellLine'] = cellLine
@@ -78,10 +76,8 @@ for cellLine in cellLines:
     allOptimalGenes.append(optimalGenes)
     allOptimalCombos.append(optimalCombos)
 
-    allEMDGenes.append(allEMDGenes)
-    allEMDCombos.append(allEMDCombos)
-# %%
-emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
+    allEMDGenes.append(emdGenes)
+    allEMDCombos.append(emdCombos)
 # %%
 allOptimalGenesConcat = pd.concat(allOptimalGenes)
 allOptimalCombosConcat = pd.concat(allOptimalCombos)
@@ -97,6 +93,9 @@ allOptimalGenesConcat = pd.read_csv('../../data/optimalGenes/allOptimalGenes.csv
 allOptimalCombosConcat = pd.read_csv('../../data/optimalGenes/allOptimalCombos.csv', index_col = 0 )
 allEMDGenesConcat = pd.read_csv('../../data/optimalGenes/allEMDGenes.csv', index_col = 0 )
 allEMDCombosConcat = pd.read_csv('../../data/optimalGenes/allEMDCombos.csv', index_col = 0 )
+# %%
+optim436 = allOptimalGenesConcat.loc[allOptimalGenesConcat['cellLine'] == 'mdamb436']
+emd436 = allEMDGenesConcat.loc[allEMDGenesConcat['cellLine'] == 'mdamb436']
 # %%
 for cellLine in allOptimalGenesConcat['cellLine'].unique():
     optimalGenes = allOptimalGenesConcat.loc[allOptimalGenesConcat['cellLine'] == cellLine].reset_index(drop = True)
