@@ -6,6 +6,8 @@ import plotnine
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 # %%
 adata231 = sc.read_h5ad('../data/h5ads/231-1KB3-20231013.h5ad')
 adata231 = adata231[adata231.obs['sample'].isin(['PT', 'C2'])]
@@ -44,16 +46,16 @@ sc.pl.umap(adata, color = ['sample', 'subsample'])
 sc.tl.dendrogram(adata, groupby = 'subsample')
 sc.pl.dendrogram(adata, groupby = 'subsample')
 # %%
-sampleDict = { 'C2':    'MDAMB231\nDox Treated',
+sampleDict = { 'C2':    'Treated',
                'LPD7':  'BT474\nLap/Pac/Dox\nTreated',
-               'PT':    'MDAMB231\nUntreated'
+               'PT':    'Untreated'
 }
 
-subsampleDict = {'ESAM Neg': 'ESAM (-)',
-                 'ESAM Pos': 'ESAM (+)',
-                 'LPDOther': 'BT474\nLap/Pac/Dox\nOther',
-                 'Lin1':     'BT474\nLap/Pac/Dox\nLineage 1',
-                 'treated':  'MDAMB231\nDox Treated'}
+subsampleDict = {'ESAM Neg': 'Subpop 1',
+                 'ESAM Pos': 'Subpop 2',
+                 'LPDOther': 'Other',
+                 'Lin1':     'Lineage 1',
+                 'treated':  'Treated'}
 
 allLabelDict = subsampleDict.copy()
 for k, v in sampleDict.items():
@@ -70,13 +72,14 @@ isESAMNeg = adata.obs['subsample']  == 'ESAM Neg'
 isLin1 =    adata.obs['subsample']  == 'Lin1'
 isOther =   adata.obs['subsample']  == 'LPDOther'
 
-X   = adata.X
-C2      =   X[isC2, :].mean(axis = 0).tolist()[0]
-PT      =   X[isPT, :].mean(axis = 0).tolist()[0]
-ESAMPos =   X[isESAMPos, :].mean(axis = 0).tolist()[0]
-ESAMNeg =   X[isESAMNeg, :].mean(axis = 0).tolist()[0]
-lin1  =     X[isLin1, :].mean(axis = 0).tolist()[0]
-lpdOther =  X[isOther, :].mean(axis = 0).tolist()[0]
+X   = adata.obsm['X_pca']
+# X = adata.X
+C2      =   X[isC2, :].mean(axis = 0).tolist()
+PT      =   X[isPT, :].mean(axis = 0).tolist()
+ESAMPos =   X[isESAMPos, :].mean(axis = 0).tolist()
+ESAMNeg =   X[isESAMNeg, :].mean(axis = 0).tolist()
+lin1  =     X[isLin1, :].mean(axis = 0).tolist()
+lpdOther =  X[isOther, :].mean(axis = 0).tolist()
 # %%
 pcaVals = {'C2': C2, 'PT': PT, 'ESAM Pos': ESAMPos, 'ESAM Neg': ESAMNeg, 'Lin1': lin1, 'LPDOther': lpdOther}
 for key in list(pcaVals.keys()):
@@ -87,32 +90,57 @@ for key in list(pcaVals.keys()):
         newKey = subsampleDict[key]
 
     pcaVals[newKey] = pcaVals.pop(key)   
-pcaVals = pd.DataFrame(pcaVals)
-pcaCorr = pcaVals.corr()
+dfPcaVals = pd.DataFrame(pcaVals)
+pcaCorr = dfPcaVals.corr()
 
 sns.heatmap(pcaCorr, annot=True, fmt='.3').set_title('Pearson Correlation of\nPopulations')
-sc.pl.umap(adata, color = ['sampleNames', 'subsampleNames'], wspace = .25)
 # %%
-colorDict = {'LPD7':        '#002bff',
+# Treated vs untreated MDAMB231s
+# ESAM + vs ESAM -
+# Lineage 1 vs Other
+untreated = 'MDA-MB-231\nUntreated'
+treated =   'MDA-MB-231\nDox Treated'
+esamPos =   'MDA-MB-231\Subpopulation 1'
+esamNeg =   'MDA-MB-231\Subpopulation 2'
+lin1 =      'BT474\nLap/Pac/Dox\nLineage 1'
+linOther =  'BT474\nLap/Pac/Dox\nOther'
+
+# corrTreat = pcaCorr.loc[treated, untreated]
+# corrSubPop = pcaCorr.loc[esamPos, esamNeg]
+# corrLin = pcaCorr.loc[lin1, linOther]
+
+# linBar = pd.DataFrame({'Treated vs. Untreated': corrTreat, 
+#                        'Subpopulation vs. Subpopulation': corrSubPop,
+#                        'Lineage vs. Sample': corrLin}, 
+#                        index = [0]).T
+
+
+# %%
+colorDict = {'LPD7':            '#002bff',
             #  'treated':       '#F68511',
              'ESAM Pos':        '#8fc26c',
              'ESAM Neg':        '#e43820',
              'C2':              '#4bc1ee',
              'PT':              '#7d1811',
-             'LPDOther':            '#2e336a',
+             'LPDOther':        '#2e336a',
              'Lin1':            '#fed504'
              }
 
 # %% Plot samples
 
-umappts = adata.obsm['X_umap']
-identity = adata.obs['sample']
+umappts = adata.obsm['X_umap'].copy()
+identity = adata.obs['sample'].copy()
 plt.rcParams.update({'font.size': 18})
 
 # plt.rcParams["axes.spines.right"] = False
 # plt.rcParams["axes.spines.top"] = False
-fig, axs = plt.subplots(1, 2, figsize = (20,8))
-ax1 = axs[0]
+
+# fig, axs = plt.subplots(1, 3, figsize = (20,16))
+fig = plt.figure(figsize = (25, 25))
+gs = gridspec.GridSpec(4, 4)
+gs.update(wspace = 0.5, hspace = 0.5)
+ax1 = plt.subplot(gs[:2, :2])
+# ax1 = axs[0]
 
 ax1.spines[["top", "right", 'left', 'bottom']].set_visible(False)
 
@@ -120,30 +148,27 @@ ax1.set_xticks([])
 ax1.set_yticks([])
 ax1.set_xlabel('UMAP 1', loc = 'left')
 ax1.set_ylabel('UMAP 2', loc = 'bottom')
-ax1.set_title('Samples')
+ax1.set_title('MDA-MB-231 Samples')
 
 for cat in identity.unique():
-    isSample = identity == cat
-    X = umappts[isSample, 0]
-    Y = umappts[isSample, 1]
+    if cat in ['C2', 'PT']:
+        isSample = identity == cat
+        X = umappts[isSample, 0].copy()
+        Y = umappts[isSample, 1].copy()
 
-    # if cat == 'LPDOther':
-    #     alpha = 1
-    # else:
-    #     alpha = 1
-    ax1.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat], alpha = alpha)
-lgnd = ax1.legend(prop=dict(size=10), bbox_to_anchor=(1, 0.5),
+        ax1.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat])
+lgnd = ax1.legend(prop=dict(size=15), bbox_to_anchor=(1, 0.5),
                          loc='center left', borderaxespad=0.)
 
 for handle in lgnd.legend_handles:
-    handle.set_sizes([80])
+    handle.set_sizes([100])
 lgnd.get_frame().set_linewidth(0.0)
 
 xmin, xmax = ax1.get_xlim() 
 ymin, ymax = ax1.get_ylim()
 
 
-ax1.arrow(xmin, ymin, 3, 0., fc='k', ec='k', lw = 1, 
+ax1.arrow(xmin, ymin, 1.8, 0., fc='k', ec='k', lw = 1, 
          head_width=0.25, head_length=0.25, overhang = 0.3, 
          length_includes_head= False, clip_on = False) 
 
@@ -159,35 +184,79 @@ ax1.xaxis.label.set_fontsize(15)
 ax1.yaxis.label.set_fontsize(15)
 
 identity = adata.obs['subsample']
-ax2 = axs[1]
+# ax2 = axs[1]
+ax2 = plt.subplot(gs[:2, 2:])
+
 ax2.spines[["top", "right", 'left', 'bottom']].set_visible(False)
 
 ax2.set_xticks([])
 ax2.set_yticks([])
 ax2.set_xlabel('', loc = 'left')
 ax2.set_ylabel('', loc = 'bottom')
-ax2.set_title('Sub-Samples')
+ax2.set_title('MDA-MB-231')
 
 for cat in identity.unique():
-    isSample = identity == cat
-    X = umappts[isSample, 0]
-    Y = umappts[isSample, 1]
+    if cat in ['C2', 'ESAM Neg', 'ESAM Pos']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
 
-    # if cat == 'LPDOther':
-    #     alpha = 1
-    # else:
-    #     alpha = 1
-    ax2.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat], alpha = alpha)
 
-lgnd = ax2.legend(prop=dict(size=10), bbox_to_anchor=(1, 0.5),
+        ax2.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat])
+
+lgnd = ax2.legend(prop=dict(size=15), bbox_to_anchor=(1, 0.5),
                          loc='center left', borderaxespad=0.)
 
 for handle in lgnd.legend_handles:
-    handle.set_sizes([80])
+    handle.set_sizes([100])
 lgnd.get_frame().set_linewidth(0.0)
 
+ax3 = plt.subplot(gs[2:4, 1:3])
+
+ax3.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+
+ax3.set_xticks([])
+ax3.set_yticks([])
+ax3.set_xlabel('', loc = 'left')
+ax3.set_ylabel('', loc = 'bottom')
+ax3.set_title('BT474 Subpopulations')
+
+for cat in identity.unique():
+    if cat in ['LPDOther']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
+
+        ax3.scatter(X, Y, c = colorDict[cat], s = 10, label = allLabelDict[cat])
+    if cat in ['Lin1']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
+
+        ax3.scatter(X, Y, c = colorDict[cat], s = 50, label = allLabelDict[cat])
+lgnd = ax3.legend(prop=dict(size=15), bbox_to_anchor=(1, 0.5),
+                         loc='center left', borderaxespad=0.)
+
+lgnd.get_frame().set_linewidth(0.0)
+
+for handle in lgnd.legend_handles:
+    handle.set_sizes([100])
+fig.savefig('../figures/umapConcat.png', dpi = 500, bbox_inches='tight')
 # %%
 
+
+gs = gridspec.GridSpec(4, 4)
+
+ax1 = plt.subplot(gs[:2, :2])
+ax1.plot(range(0,10), range(0,10))
+ax1.set_title('1')
+ax2 = plt.subplot(gs[:2, 2:])
+ax2.plot(range(0,10), range(0,10))
+
+ax3 = plt.subplot(gs[2:4, 1:3])
+ax3.plot(range(0,10), range(0,10))
+
+plt.show()
 # %%
 adata231 = sc.read_h5ad('../data/h5ads/231-1KB3-20231013.h5ad')
 # %%
