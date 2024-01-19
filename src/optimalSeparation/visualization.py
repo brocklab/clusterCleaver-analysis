@@ -23,6 +23,7 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
     dfHist = pd.DataFrame(expression, adata.obs[colorCol]).reset_index()
     dfHist.columns = [colorCol, 'expression']
 
+    dfHist[colorCol] = dfHist[colorCol].astype('category')
     # , log_scale=(False, True)
     plt.figure(figsize=(7,6))
     plt.subplot(211)
@@ -32,7 +33,7 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
                 hue=colorCol, 
                 element="poly", 
                 stat='proportion',
-                log_scale = (False, logScale))
+                log_scale = (False, logScale)).set(xlabel='')
     
     plt.subplot(212)
     sns.stripplot(

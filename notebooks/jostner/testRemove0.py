@@ -106,9 +106,6 @@ distOrig = wasserstein_distance(X0, X1)
 X1No0 = X1[X1>0]
 
 distNew = wasserstein_distance(X0, X1No0)
-
-plt.hist(X0)
-plt.hist(X1No0)
 # %%
 gene = 'EPB41L3'
 g0 = adata.X[:, surfaceIdx] <= 0
@@ -135,6 +132,8 @@ for gene in tqdm(surfaceGenes['gene'].tolist()):
     elif X0.mean() > X1.mean():
         X0 = X0[X0>0]
 
+    if X0.shape[0] < 100 or X1.shape[0] < 100:
+        continue
     distNew = wasserstein_distance(X0, X1)
 
     allDists.append(distOrig)
@@ -143,8 +142,8 @@ for gene in tqdm(surfaceGenes['gene'].tolist()):
 dfNewDists = pd.DataFrame([identifiedGenes, allDists, allNewDists]).T
 dfNewDists.columns = ['gene', 'oldScore', 'newScore']
 # %%
-# gene = 'LINGO3'
-gene = 'EPB41L3'
+gene = 'LINGO3'
+# gene = 'EPB41L3'
 surfaceIdx = np.where(adata.var.index.isin([gene]))[0]
 
 is0 = np.array(adata.obs[label] == '0').astype(bool)
@@ -155,11 +154,12 @@ X0 = X0.ravel()
 X1 = X1.ravel()
 g0 = adata.X[:, surfaceIdx] <= 0
 g0 = g0.ravel()
-if X1.mean() < X0.mean():
+if X1.mean() > X0.mean():
     adataNo0 = adata[~np.logical_and(is1, g0), surfaceIdx]
 else:
     adataNo0 = adata[~np.logical_and(is0, g0), surfaceIdx]
 
+visualization.plotHists(adata, gene = gene)
 visualization.plotHists(adataNo0, gene = gene)
 # %%
 expression = adata.X[:, surfaceIdx]
