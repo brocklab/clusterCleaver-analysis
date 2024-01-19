@@ -24,16 +24,26 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
     dfHist.columns = [colorCol, 'expression']
 
     # , log_scale=(False, True)
-    
-    sns.histplot(data=dfHist, 
-                 x='expression', 
-                 hue=colorCol, 
-                 element="poly", 
-                 stat='proportion',
-                 log_scale = (False, logScale)).set(
+    plt.subplot(121)
+    sns.histplot(
+                data=dfHist, 
+                x='expression', 
+                hue=colorCol, 
+                element="poly", 
+                stat='proportion',
+                log_scale = (False, logScale)).set(
         xlabel = f'{gene} Expression'
     )
-
+    plt.subplot(122)
+    sns.scatterplot(
+                data=dfHist, 
+                x='expression', 
+                hue=colorCol, 
+                element="poly", 
+                stat='proportion',
+                log_scale = (False, logScale)).set(
+        xlabel = f'{gene} Expression'
+    )
 def plotParetoOptimal(optimalGenes, paretoOptimalGenes, nGenes = 1, metric = 'auc'):
     if nGenes not in [1, 2]:
         print('Number of genes must be one or two for plotting')

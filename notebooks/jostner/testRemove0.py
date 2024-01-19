@@ -9,6 +9,8 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import wasserstein_distance
+import seaborn as sns
 
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
@@ -44,9 +46,9 @@ for cellLine, adataSub in adatas.items():
 # %%
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
-adata = adatas['mdamb231']
-allEMDGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
-allEMDCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = allEMDGenes['genes'])
+# adata = adatas['mdamb231']
+# allEMDGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
+# allEMDCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = allEMDGenes['genes'])
 
 # %%
 allOptimalGenes, allOptimalCombos = [], []
@@ -78,14 +80,45 @@ for cellLine in cellLines:
     allEMDGenes.append(emdGenes)
     # allEMDCombos.append(emdCombos)
 # %%
-from optimalSeparation.visualization import plotHists
-cellLine = 'mdamb436'
-plotHists(adatas[cellLine], gene = 'EZR')
+# from optimalSeparation.visualization import plotHists
+# cellLine = 'mdamb436'
+# # plotHists(adatas[cellLine], gene = 'EZR')
+# # %%
+# adatas[cellLine][:, ['BST2', 'ESAM']].X
+# # %%
+# plotHists(adatas[cellLine], gene = 'EPB41L3')
 # %%
-adatas[cellLine][:, ['BST2', 'ESAM']].X
+label = 'leiden'
+is0 = np.array(adata.obs[label] == '0').astype(bool)
+is1 = np.array(adata.obs[label] == '1').astype(bool)
+adata = adatas[cellLine]
+surfaceIdx = np.where(adata.var.index.isin(['EPB41L3']))[0]
+X = adata.X[:, surfaceIdx]
+X0 = X[is0, :]
+X1 = X[is1, :]
+X0 = X0.ravel()
+X1 = X1.ravel()
+
+distOrig = wasserstein_distance(X0, X1)
+
+# Remove 0s
+X1No0 = X1[X1>0]
+
+distNew = wasserstein_distance(X0, X1No0)
+
+plt.hist(X0)
+plt.hist(X1No0)
+
 # %%
-lessOptimalGenes = emdGenes['genes'].iloc[10:35].tolist()
-for gene in lessOptimalGenes:
-    plt.figure()
-    plotHists(adatas[cellLine], gene = gene)
-# EPB41L3
+expression = adata.X[:, surfaceIdx]
+dfHist = pd.DataFrame(expression, adata.obs[label]).reset_index()
+dfHist.columns = [label, 'expression']
+# %%
+sns.swarmplot(
+                data=dfHist, 
+                x='expression', 
+                hue=label, 
+                native_scale=True,
+                log_scale = (False, False)).set(
+        xlabel = f'Expression'
+    )
