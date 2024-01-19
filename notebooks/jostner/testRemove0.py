@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import wasserstein_distance
 import seaborn as sns
+from tqdm import tqdm
 
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
@@ -80,13 +81,13 @@ for cellLine in cellLines:
     allEMDGenes.append(emdGenes)
     # allEMDCombos.append(emdCombos)
 # %%
-# from optimalSeparation.visualization import plotHists
+from optimalSeparation.visualization import plotHists
 # cellLine = 'mdamb436'
 # # plotHists(adatas[cellLine], gene = 'EZR')
 # # %%
 # adatas[cellLine][:, ['BST2', 'ESAM']].X
-# # %%
-# plotHists(adatas[cellLine], gene = 'EPB41L3')
+# %%
+visualization.plotHists(adatas[cellLine], gene = 'EPB41L3')
 # %%
 label = 'leiden'
 is0 = np.array(adata.obs[label] == '0').astype(bool)
@@ -108,7 +109,58 @@ distNew = wasserstein_distance(X0, X1No0)
 
 plt.hist(X0)
 plt.hist(X1No0)
+# %%
+gene = 'EPB41L3'
+g0 = adata.X[:, surfaceIdx] <= 0
+g0 = g0.ravel()
+adataNo0 = adata[~np.logical_and(is1, g0), surfaceIdx]
+visualization.plotHists(adataNo0, gene = 'EPB41L3')
+# %%
+allDists, allNewDists, identifiedGenes = [], [], []
+is0 = np.array(adata.obs[label] == '0').astype(bool)
+is1 = np.array(adata.obs[label] == '1').astype(bool)
+for gene in tqdm(surfaceGenes['gene'].tolist()):
+    surfaceIdx = np.where(adata.var.index.isin([gene]))[0]
+    if len(surfaceIdx) == 0:
+        continue
+    X = adata.X[:, surfaceIdx]
+    X0 = X[is0, :]
+    X1 = X[is1, :]
+    X0 = X0.ravel()
+    X1 = X1.ravel()
+    distOrig = wasserstein_distance(X0, X1)
 
+    if X1.mean() > X0.mean():
+        X1 = X1[X1>0]
+    elif X0.mean() > X1.mean():
+        X0 = X0[X0>0]
+
+    distNew = wasserstein_distance(X0, X1)
+
+    allDists.append(distOrig)
+    allNewDists.append(distNew)
+    identifiedGenes.append(gene)
+dfNewDists = pd.DataFrame([identifiedGenes, allDists, allNewDists]).T
+dfNewDists.columns = ['gene', 'oldScore', 'newScore']
+# %%
+# gene = 'LINGO3'
+gene = 'EPB41L3'
+surfaceIdx = np.where(adata.var.index.isin([gene]))[0]
+
+is0 = np.array(adata.obs[label] == '0').astype(bool)
+is1 = np.array(adata.obs[label] == '1').astype(bool)
+X0 = X[is0, :]
+X1 = X[is1, :]
+X0 = X0.ravel()
+X1 = X1.ravel()
+g0 = adata.X[:, surfaceIdx] <= 0
+g0 = g0.ravel()
+if X1.mean() < X0.mean():
+    adataNo0 = adata[~np.logical_and(is1, g0), surfaceIdx]
+else:
+    adataNo0 = adata[~np.logical_and(is0, g0), surfaceIdx]
+
+visualization.plotHists(adataNo0, gene = gene)
 # %%
 expression = adata.X[:, surfaceIdx]
 dfHist = pd.DataFrame(expression, adata.obs[label]).reset_index()
@@ -118,7 +170,6 @@ sns.stripplot(
                 data=dfHist, 
                 x='expression', 
                 hue=label, 
-                native_scale=True,
-                log_scale = (False, False)).set(
+                native_scale=True).set(
         xlabel = f'Expression'
     )
