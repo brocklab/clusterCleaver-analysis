@@ -8,6 +8,8 @@ import numpy as np
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
 # %%
+print('hi')
+# %%
 adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 # %%
 samples = adataFull.obs['sample'].unique()
