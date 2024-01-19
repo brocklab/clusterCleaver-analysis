@@ -114,7 +114,7 @@ expression = adata.X[:, surfaceIdx]
 dfHist = pd.DataFrame(expression, adata.obs[label]).reset_index()
 dfHist.columns = [label, 'expression']
 # %%
-sns.swarmplot(
+sns.stripplot(
                 data=dfHist, 
                 x='expression', 
                 hue=label, 
