@@ -88,3 +88,4 @@ lessOptimalGenes = emdGenes['genes'].iloc[10:35].tolist()
 for gene in lessOptimalGenes:
     plt.figure()
     plotHists(adatas[cellLine], gene = gene)
+# EPB41L3
