@@ -232,18 +232,23 @@ def vectorizedWasserstein(u_values, v_values):
 
     return wd
 
-def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = []):
+def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = [], minCounts = 100):
     """
     Computes the wasserstein (earth mover's distance) metric on gene expression data
 
     Inputs:
         - adata: Anndata object with .obs consisting of numeric leiden cluster column
         - surfaceGenes: List of surface genes to compare
+        - modifier: Will remove 0s for improved EMD score, else run on unmodified gene expression
         - label: Column name in .obs containing label identities
-        - nGenes: Number of genes to search through 
+        - nGenes: Number of genes to search through
+        - minCounts: Number of counts sufficient for gene to pass when using modifier "remove0"
     Outputs:
         - dfScores: Modified surface genes dataframe with a new separation score    
     """
+    assert modifier in ['remove0', None], 'Modifier must be "remove0" or None'
+    if modifier == 'remove0':
+        assert nGenes == 1, 'Number of genes must be 1 to remove low expression values'
     if issparse(adata.X):
         adata.X = adata.X.toarray()
     scGenes = np.array(adata.var.index)
@@ -292,6 +297,7 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTop
             cluster = -1
         
         if nGenes == 1:
+            X0, X1 = modifyEMD(X0, X1, modifier)
             dist = wasserstein_distance(X0, X1)
         elif nGenes > 1:
             dist = sliced_wasserstein(X0, X1, num_proj = 50)
@@ -304,3 +310,19 @@ def searchExpressionDist(adata, surfaceGenes, label = 'leiden', nGenes = 1, nTop
         geneDict['scores'] = comboScores
         dfScores = pd.DataFrame(geneDict)
     return dfScores.sort_values(by = 'scores', ascending = False)
+
+def modifyEMD(X0, X1, modifier, minCounts = 100):
+    if modifier != 'remove0':
+        return X0, X1
+    if X1.mean() > X0.mean():
+        X1New = X1[X1>0]
+        X0New = X0
+    elif X0.mean() > X1.mean():
+        X0New = X0[X0>0]
+        X1New = X1
+    else:
+        return X0, X1
+    if X0New.shape[0] < minCounts or X1New.shape[0] < minCounts:
+        return X0, X1
+    else:
+        return X0New, X1New

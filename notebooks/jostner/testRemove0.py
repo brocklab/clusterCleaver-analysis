@@ -52,34 +52,23 @@ surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # allEMDCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = allEMDGenes['genes'])
 
 # %%
-allOptimalGenes, allOptimalCombos = [], []
-allEMDGenes, allEMDCombos = [], []
-allPareto1, allPareto2 = {}, {}
+allEMDGenes, allEMDGenesNo0 = {}, {}
 cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38', 'mdamb436']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
     adata = adatas[cellLine]
-    # optimalGenes = searchOptimal.searchGeneSeparation(adata, surfaceGenes['gene'])
-    # optimalGenesSurface = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalGenes, nGenes = 1)
-    # optimalGenesPareto = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface)
-    emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
 
-    # optimalCombos = searchOptimal.searchSeparation2(adata, optimalGenes, nGenes = 75)
-    # # optimalGenesSurface2 = searchOptimal.mergeSurfaceScores(surfaceGenes, optimalCombos, nGenes = 2)
-    # # optimalGenesPareto2 = searchOptimal.findOptimalSurfaceMarkers(optimalGenesSurface2, nGenes = 2)
-    # emdCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = emdGenes['genes'][0:75].tolist())
+    emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], modifier = None)
 
-    # optimalGenes['cellLine'] = cellLine
-    # optimalCombos['cellLine'] = cellLine
+    emdGenes.columns = ['genes', 'scoresOld', 'cluster']
     emdGenes['cellLine'] = cellLine
-    # emdCombos['cellLine'] = cellLine
 
+    allEMDGenes['cellLine'] = emdGenes
 
-    # allOptimalGenes.append(optimalGenes)
-    # allOptimalCombos.append(optimalCombos)
+    emdGenesNew = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], modifier = 'remove0')
 
-    allEMDGenes.append(emdGenes)
-    # allEMDCombos.append(emdCombos)
+    emdGenesNew.columns = ['genes', 'scoresNew', 'cluster']
+    allEMDGenesNo0['cellLine'] = emdGenesNew
 # %%
 from optimalSeparation.visualization import plotHists
 # cellLine = 'mdamb436'
@@ -134,6 +123,7 @@ for gene in tqdm(surfaceGenes['gene'].tolist()):
 
     if X0.shape[0] < 100 or X1.shape[0] < 100:
         continue
+
     distNew = wasserstein_distance(X0, X1)
 
     allDists.append(distOrig)
@@ -142,7 +132,7 @@ for gene in tqdm(surfaceGenes['gene'].tolist()):
 dfNewDists = pd.DataFrame([identifiedGenes, allDists, allNewDists]).T
 dfNewDists.columns = ['gene', 'oldScore', 'newScore']
 # %%
-gene = 'LINGO3'
+gene = 'IL13RA2'
 # gene = 'EPB41L3'
 surfaceIdx = np.where(adata.var.index.isin([gene]))[0]
 
