@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import scipy.sparse
 # %%
 def plotExpression(adata, genes, colorCol = 'leiden'):
@@ -14,7 +15,7 @@ def plotExpression(adata, genes, colorCol = 'leiden'):
     dfExpr.columns = [genes[0], genes[1], 'leiden']
     sns.jointplot(data = dfExpr, x = genes[0], y = genes[1], hue = 'leiden')
     
-def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
+def plotHists(adata, gene, colorCol = 'leiden', logScale = False, saveFig = ''):
     surfaceIdx = np.where(adata.var.index.isin([gene]))[0][0]
     expression = adata.X[:, surfaceIdx]
     if scipy.sparse.issparse(expression):
@@ -40,9 +41,19 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False):
             data=dfHist, 
             x='expression', 
             hue=colorCol, 
-            native_scale=True).set(
+            native_scale=True,
+            legend = False,
+            # jitter = 0.45
+            jitter = True).set(
         xlabel = f'{gene} Expression'
     )
+    if len(saveFig) > 0:
+        saveDirectory = Path(saveFig).parents[0]
+        if saveDirectory.exists():
+            plt.savefig(saveFig, dpi = 500)
+        else:
+            print('Save path directory {saveDirectory} does not exist.')
+
 def plotParetoOptimal(optimalGenes, paretoOptimalGenes, nGenes = 1, metric = 'auc'):
     if nGenes not in [1, 2]:
         print('Number of genes must be one or two for plotting')

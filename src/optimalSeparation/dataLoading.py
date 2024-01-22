@@ -46,4 +46,41 @@ def loadClusteredAnndatas(adata, cellLines, adataPath = '../data/h5ads/kinder-le
             adatas[cellLine] = adata_sub
 
     return adatas
+
+def processFullAnndata(adataFull):
+    """
+    Loads, preprocesses, and clusters concatenated anndatas loaded from adataPath
+    Preprocessing consists of removing doublets, calculating highly variable genes, and computing dimensionality reduction
+    Clustering comes from selectively reducing the leiden resolution until two clusters remain
+    Inputs:
+        - adataPath: Path to .h5ad file
+    Outpts:
+        - adatas: Dictionary where keys are cell lines and values are corresponding anndatas
     
+    """
+    samples = adataFull.obs['sample'].unique()
+    adatas = {}
+    for sample in samples:
+        adataSub = adataFull[adataFull.obs['sample'].isin([sample])]
+        adataSub = adataSub[adataSub.obs['scDblFinder_class'] == 'singlet']
+        sc.pp.highly_variable_genes(adataSub, min_mean=0.0125, max_mean=3, min_disp=0.5)
+        compute_dimensionality_reductions(adataSub)
+        # sc.pl.umap(adataSub, title = sample)
+        adatas[sample] = adataSub
+
+    cellLineRes = {}
+    for cellLine, adataSub in adatas.items():
+        leidenResolution = 2
+        nLeiden = 5
+        c = 1
+        while nLeiden != 2:
+            leidenResolution /= 1.3
+            sc.tl.leiden(adataSub, resolution= leidenResolution)
+            nLeiden = len(adataSub.obs['leiden'].unique())
+            c += 1
+            if c > 20:
+                leidenResolution = 0
+                break
+        cellLineRes[cellLine] = leidenResolution
+        print(adataSub.obs['leiden'].unique())
+        print(f'Cell Line: {cellLine} \t Resolution: {leidenResolution} \t nLeiden: {nLeiden}')
