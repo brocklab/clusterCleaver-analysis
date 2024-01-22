@@ -61,14 +61,36 @@ for cellLine in cellLines:
     emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], modifier = None)
 
     emdGenes.columns = ['genes', 'scoresOld', 'cluster']
-    emdGenes['cellLine'] = cellLine
+    # emdGenes['cellLine'] = cellLine
 
-    allEMDGenes['cellLine'] = emdGenes
+    allEMDGenes[cellLine] = emdGenes
 
     emdGenesNew = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], modifier = 'remove0')
 
     emdGenesNew.columns = ['genes', 'scoresNew', 'cluster']
-    allEMDGenesNo0['cellLine'] = emdGenesNew
+    # emdGenesNew['cellLine'] = cellLine
+    allEMDGenesNo0[cellLine] = emdGenesNew
+# %%
+dfEMDGenesNo0   = pd.concat(allEMDGenesNo0, names = ['cellLine', 'idx']).reset_index().drop(columns = 'idx')
+dfEMDGenes0      = pd.concat(allEMDGenes, names = ['cellLine', 'idx']).reset_index().drop(columns = 'idx')
+dfEMDGenesAll =dfEMDGenesNo0.merge(dfEMDGenes0, on = ['genes', 'cellLine'])
+
+dfEMDGenesAll.head()
+
+dfEMDGenesAll.to_csv('../../data/optimalGenes/allEMDGenesNewOld.csv')
+# %%
+dfEMDGenesAll.sort_values(by = 'scoresNew', ascending=False)
+# %%
+visualization.plotHists(adatas['mdamb231'], gene = 'TSPAN8')
+# %%
+cellLine = 'bt474'
+dfEMDGenes = dfEMDGenesAll.loc[dfEMDGenesAll['cellLine'] == cellLine, :]
+print('Scores New:')
+print(dfEMDGenes.sort_values(by = 'scoresNew', ascending = False).head())
+print('Scores Old:')
+print(dfEMDGenes.sort_values(by = 'scoresOld', ascending = False).head())
+# %%
+visualization.plotHists(adatas[cellLine], gene = 'DNAJC9')
 # %%
 from optimalSeparation.visualization import plotHists
 # cellLine = 'mdamb436'
