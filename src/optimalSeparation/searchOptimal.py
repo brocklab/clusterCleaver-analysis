@@ -312,6 +312,18 @@ def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'lei
     return dfScores.sort_values(by = 'scores', ascending = False)
 
 def modifyEMD(X0, X1, modifier, minCounts = 100):
+    """
+    Selectively removes gene expression with counts of 0s for the higher expressing cluster. 
+
+    Inputs:
+    - X0, X1: Numpy arrays of gene expression for two separate clusters
+    - modifier: Selects how to remove genes
+                Currently only available as "remove0"
+    - minCounts: Prevents selection of genes with low cell numbers after removal
+    
+    Outputs:
+    - X0New, X1New: Modified gene expression values
+    """
     if modifier != 'remove0':
         return X0, X1
     if X1.mean() > X0.mean():
