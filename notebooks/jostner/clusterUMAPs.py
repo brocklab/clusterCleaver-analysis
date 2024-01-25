@@ -4,11 +4,13 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns 
 
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
 # %%
-print('hi')
+colors = ['#BB4E44', '#44B1BB', '#76BB44', '#8944BB']
+sns.set_palette(sns.color_palette(colors))
 # %%
 adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 # %%

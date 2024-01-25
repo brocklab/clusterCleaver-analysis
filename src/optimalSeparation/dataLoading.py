@@ -84,3 +84,5 @@ def processFullAnndata(adataFull):
         cellLineRes[cellLine] = leidenResolution
         print(adataSub.obs['leiden'].unique())
         print(f'Cell Line: {cellLine} \t Resolution: {leidenResolution} \t nLeiden: {nLeiden}')
+    
+    return adatas

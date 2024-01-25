@@ -6,6 +6,10 @@ import pandas as pd
 from pathlib import Path
 import scipy.sparse
 # %%
+colors = ['#BB4E44', '#44B1BB', '#76BB44', '#8944BB']
+fullPalette = list(colors + sns.color_palette("tab10"))
+sns.set_palette(sns.color_palette(fullPalette))
+# %%
 def plotExpression(adata, genes, colorCol = 'leiden'):
     X = adata[:, genes].X
     if scipy.sparse.issparse(X):
@@ -35,7 +39,7 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False, saveFig = ''):
                 element="poly", 
                 stat='proportion',
                 log_scale = (False, logScale)).set(xlabel='')
-    
+            
     plt.subplot(212)
     sns.stripplot(
             data=dfHist, 
