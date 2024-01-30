@@ -1,0 +1,27 @@
+```{r}
+require(sc2marker)
+require(Seurat)
+```
+
+```{r}
+nk.markers <- Detect_single_marker(mca.spleen, id = "NK cell(Spleen)", category = "Flow", org = "mouse")
+
+```
+
+```{r}
+plot_ridge(mca.spleen, id = "NK cell(Spleen)", genes = nk.markers[1:9,]$gene, ncol = 3, assay = "RNA", aggr.other = F)
+```
+
+```{r}
+x = Seurat::FetchData(mca.spleen, vars = 'Klrb1c', slot = 'data')
+
+```
+
+```{r}
+library(reticulate)
+ad <- import("anndata", convert = FALSE)
+scanpy_ad <- ad$read_h5ad('../../data/h5ads/jostner-processed.h5ad')
+jostner = Convert(scanpy_ad, to = 'seurat')
+
+
+```

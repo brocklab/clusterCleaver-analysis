@@ -15,18 +15,29 @@ cellTypesJoin.index.name = None
 adata.obs = adata.obs.join(cellTypesJoin)
 
 # %%
-adata.obs['isCluster'] = 0
-adata.obs.loc[adata.obs['Annotation'] == 'Marginal zone B cell(Spleen)', 'isCluster'] = 1
+adata.obs['isSplenic'] = 0
+adata.obs.loc[adata.obs['Annotation'] == 'Marginal zone B cell(Spleen)', 'isSplenic'] = 1
 
-sc.pl.umap(adata, color = 'isCluster')
+sc.pl.umap(adata, color = 'isSplenic')
 # %%
 from optimalSeparation import searchOptimal, dataLoading, visualization
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
-emdGenesNew = searchOptimal.searchExpressionDist(adata, adata.var.index, label = 'isCluster', modifier = 'remove0')
+emdGenesNew = searchOptimal.searchExpressionDist(adata, adata.var.index, label = 'isSplenic', modifier = 'remove0')
 # %%
-visualization.plotHists(adata, gene = 'Ly6d', colorCol = 'isCluster')
+visualization.plotHists(adata, gene = 'Ly6d', colorCol = 'isSplenic')
 # %%
-visualization.plotHists(adata, gene = 'Cd74', colorCol = 'isCluster')
+visualization.plotHists(adata, gene = 'Cd74', colorCol = 'isSplenic')
+# %%
+topGenes = emdGenesNew['genes'][0:75].tolist()
+# %%
+allEMDCombos = searchOptimal.searchExpressionDist(adata, adata.var.index, nGenes = 2, topGenes = topGenes, modifier = None)
+# %%
+allEMDCombos = searchOptimal.searchExpressionDist(adata, adata.var.index, nGenes = 2, topGenes = ['Cd19, Ly6d', ''], modifier = None)
 
 # %%
+visualization.plotHists(adata, gene = 'Cd79b', colorCol = 'isSplenic')
+# %%
+visualization.plotExpression(adata, genes = ['Ly6d', 'Cd19'], colorCol = 'isSplenic')
+# %%
+visualization.plotExpression(adata, genes = ['Ly6d', 'Cd74'], colorCol = 'isSplenic')

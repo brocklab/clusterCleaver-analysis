@@ -15,9 +15,9 @@ def plotExpression(adata, genes, colorCol = 'leiden'):
     if scipy.sparse.issparse(X):
         X = X.toarray()
     
-    dfExpr = pd.DataFrame([X[:,0], X[:, 1], adata.obs['leiden']]).T
-    dfExpr.columns = [genes[0], genes[1], 'leiden']
-    sns.jointplot(data = dfExpr, x = genes[0], y = genes[1], hue = 'leiden')
+    dfExpr = pd.DataFrame([X[:,0], X[:, 1], adata.obs[colorCol]]).T
+    dfExpr.columns = [genes[0], genes[1], colorCol]
+    sns.jointplot(data = dfExpr, x = genes[0], y = genes[1], hue = colorCol)
     
 def plotHists(adata, gene, colorCol = 'leiden', logScale = False, saveFig = ''):
     surfaceIdx = np.where(adata.var.index.isin([gene]))[0][0]
