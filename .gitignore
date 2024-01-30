@@ -201,3 +201,4 @@ figures/
 cache/
 /env*/
 scRNASep/
+*.csv

@@ -4,8 +4,20 @@ require(Seurat)
 ```
 
 ```{r}
-nk.markers <- Detect_single_marker(mca.spleen, id = "NK cell(Spleen)", category = "Flow", org = "mouse")
+seu = readRDS('../../data/toSeurat/231jostnerProcessed.rds')
+```
 
+```{r}
+seu <- FindNeighbors(seu, dims = 1:10)
+seu <- FindClusters(seu, resolution = 0.05)
+```
+
+```{r}
+DimPlot(seu, reduction = "umap")
+```
+
+```{r}
+nk.markers <- Detect_single_marker(mca.spleen, id = "NK cell(Spleen)", category = "Flow", org = "Human")
 ```
 
 ```{r}
@@ -13,8 +25,7 @@ plot_ridge(mca.spleen, id = "NK cell(Spleen)", genes = nk.markers[1:9,]$gene, nc
 ```
 
 ```{r}
-x = Seurat::FetchData(mca.spleen, vars = 'Klrb1c', slot = 'data')
-
+markers231 = Detect_single_marker(seu, id = '1', category='Flow', org = 'Human', self.db = './sc2MarkerGenes.csv')
 ```
 
 ```{r}

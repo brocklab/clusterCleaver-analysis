@@ -37,7 +37,7 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False, saveFig = ''):
                 x='expression', 
                 hue=colorCol, 
                 element="poly", 
-                stat='proportion',
+                # stat='proportion',
                 log_scale = (False, logScale)).set(xlabel='')
             
     plt.subplot(212)

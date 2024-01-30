@@ -47,7 +47,7 @@ plt.hist(x1, alpha = 0.5)
 plt.hist(x2, alpha = 0.5)
 plt.title(f'EMD: {EMD:0.2f}')
 
-plt.xticks([])
+# plt.xticks([])
 plt.yticks([])
 plt.xlabel('Gene Expression')
 
@@ -59,7 +59,7 @@ plt.hist(x1, alpha = 0.5)
 plt.hist(x2, alpha = 0.5)
 plt.title(f'EMD: {EMD:0.2f}')
 
-plt.xticks([])
+# plt.xticks([])
 plt.yticks([])
 plt.xlabel('Gene Expression')
 
@@ -71,7 +71,7 @@ plt.hist(x1, alpha = 0.5)
 plt.hist(x2, alpha = 0.5)
 plt.title(f'EMD: {EMD:0.2f}')
 
-plt.xticks([])
+# plt.xticks([])
 plt.yticks([])
 plt.xlabel('Gene Expression')
 
