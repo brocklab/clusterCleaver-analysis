@@ -8,7 +8,7 @@ import itertools
 import warnings
 from scipy.sparse import issparse
 from scipy.stats import wasserstein_distance
-
+from scipy.spatial.distance import bhat
 def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCombos = 10000):
     """
     Scores genes based on separability of predefined clusters. 
