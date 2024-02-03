@@ -26,6 +26,7 @@ plot_ridge(mca.spleen, id = "NK cell(Spleen)", genes = nk.markers[1:9,]$gene, nc
 
 ```{r}
 markers231 = Detect_single_marker(seu, id = '1', category='Flow', org = 'Human', self.db = './sc2MarkerGenes.csv')
+head(markers231, 10)
 ```
 
 ```{r}
@@ -33,6 +34,4 @@ library(reticulate)
 ad <- import("anndata", convert = FALSE)
 scanpy_ad <- ad$read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 jostner = Convert(scanpy_ad, to = 'seurat')
-
-
 ```

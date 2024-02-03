@@ -7,8 +7,8 @@ import pandas as pd
 import itertools
 import warnings
 from scipy.sparse import issparse
-from scipy.stats import wasserstein_distance
-from scipy.spatial.distance import bhat
+from scipy.stats import wasserstein_distance, gaussian_kde, iqr
+
 def searchGeneSeparation(adata, surfaceGenes, label = 'leiden', nGenes = 1, nCombos = 10000):
     """
     Scores genes based on separability of predefined clusters. 
@@ -284,8 +284,12 @@ def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'lei
     for combo in tqdm(surfaceCombos):
         surfaceIdx = np.where(adata.var.index.isin(combo))[0]
         X = adata.X[:, surfaceIdx]
+
         X0 = X[is0, :]
         X1 = X[is1, :]
+
+        # if sum(X0) == 0 or sum(X1) == 0:
+        #     continue
         if nGenes == 1:
             X0 = X0.ravel()
             X1 = X1.ravel()
@@ -299,6 +303,7 @@ def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'lei
         if nGenes == 1:
             X0, X1 = modifyEMD(X0, X1, modifier)
             dist = wasserstein_distance(X0, X1)
+            # dist = bhattacharyyaHist(X0, X1)
         elif nGenes > 1:
             dist = sliced_wasserstein(X0, X1, num_proj = 50)
         comboScores.append(dist)
@@ -311,7 +316,7 @@ def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'lei
         dfScores = pd.DataFrame(geneDict)
     return dfScores.sort_values(by = 'scores', ascending = False)
 
-def modifyEMD(X0, X1, modifier, minCounts = 100):
+def modifyEMD(X0, X1, modifier = 'remove0', minCounts = 100):
     """
     Selectively removes gene expression with counts of 0s for the higher expressing cluster. 
 
@@ -338,3 +343,73 @@ def modifyEMD(X0, X1, modifier, minCounts = 100):
         return X0, X1
     else:
         return X0New, X1New
+
+def calculateKDE(y, covarianceFactor = 0.25):
+    kernel = gaussian_kde(y)
+    kernel.covariance_factor = lambda : covarianceFactor
+    kernel._compute_covariance()
+    return kernel
+
+def bhattacharyya(p, q):
+    return np.sum(np.sqrt(p*q))
+
+def calculateBhattacharyya(X0, X1, ptsEval = 10000):
+    """
+    Calculates the Bhattacharyya score by:
+    - Finding a kernel density estimate
+    - Normalizing KDE
+    - Computing score
+
+    Inputs:
+    - X0: First gene expression vector
+    - X1: Second gene expression vector
+    - ptsEval: Number of points to evaluate bhjattacharyya score 
+        (will decrease speed on increase of value)
+    """
+    kernel0 = calculateKDE(X0)
+    kernel1 = calculateKDE(X1)
+
+    expr = np.linspace(0, max(np.concatenate([X0, X1])), ptsEval)
+
+    X0KDE = kernel0(expr)
+    X1KDE = kernel1(expr)
+
+    X0KDE /= sum(X0KDE)
+    X1KDE /= sum(X1KDE)
+
+    bScore = bhattacharyya(X0KDE, X1KDE)
+
+    return bScore
+
+freedmanDiaconis = lambda x: 2*iqr(x)/(len(x)**(1/3))
+sturgesRule = lambda x: int(np.ceil(np.log2(len(x))+1))
+def bhattacharyyaHist(p, q):
+    """
+    Very fast (vectorized) bhattacharyya coefficient calculator
+    Inputs:
+    - p: List of observed values
+    - q: List of observed values
+    Outputs:
+    - bScore: Bhattacharyya coefficient
+    """
+    # Grab relevant information for later calculations
+    full = np.concatenate([p, q])
+    maxFull = np.max(full)
+    minFull = np.min(full)
+    # Calculate number of bins using Freedman-Diaconis rule
+    # If IQR is 0, use sturges rule
+    # Could use other rules to slightly improve score accuracy
+    fdB = freedmanDiaconis(p)
+    if fdB > 0:
+        nBins = int(np.ceil((maxFull - minFull)/fdB))
+    else:
+        nBins = sturgesRule(p)
+    # Calculate and normalize counts
+    histRange = (minFull, maxFull)
+    hist1, _ = np.histogram(p, bins = nBins, range = histRange)
+    hist2, _ = np.histogram(q, bins = nBins, range = histRange)
+    hist1 = hist1/sum(hist1)
+    hist2 = hist2/sum(hist2)
+
+    bScore = bhattacharyya(hist1, hist2)    
+    return -np.log(bScore)

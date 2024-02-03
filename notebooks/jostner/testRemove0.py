@@ -28,6 +28,7 @@ surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
 allEMDGenes, allEMDGenesNo0 = {}, {}
 cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38', 'mdamb436']
+cellLines = ['mdamb231']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
     adata = adatas[cellLine]
@@ -38,6 +39,7 @@ for cellLine in cellLines:
     # emdGenes['cellLine'] = cellLine
 
     allEMDGenes[cellLine] = emdGenes
+
 
     emdGenesNew = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], modifier = 'remove0')
 
@@ -57,12 +59,17 @@ dfEMDGenesAll.sort_values(by = 'scoresNew', ascending=False)
 # %%
 visualization.plotHists(adatas['mdamb231'], gene = 'TSPAN8')
 # %%
-cellLine = 'mdamb436'
+cellLine = 'mdamb231'
 dfEMDGenes = dfEMDGenesAll.loc[dfEMDGenesAll['cellLine'] == cellLine, :]
 print('Scores New:')
-print(dfEMDGenes.sort_values(by = 'scoresNew', ascending = False).head())
+print(dfEMDGenes.sort_values(by = 'scoresNew', ascending = True).head())
 print('Scores Old:')
-print(dfEMDGenes.sort_values(by = 'scoresOld', ascending = False).head())
+print(dfEMDGenes.sort_values(by = 'scoresOld', ascending = True).head())
+# %%
+gene = 'CLEC2B'
+dfEMDGenes.loc[dfEMDGenes['genes'] == gene]
+visualization.plotHists(adatas[cellLine], gene = gene)
+
 # %%
 gene = 'BST2'
 cellLine = 'mdamb436'
