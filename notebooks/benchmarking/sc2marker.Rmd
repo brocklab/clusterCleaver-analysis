@@ -30,8 +30,5 @@ head(markers231, 10)
 ```
 
 ```{r}
-library(reticulate)
-ad <- import("anndata", convert = FALSE)
-scanpy_ad <- ad$read_h5ad('../../data/h5ads/jostner-processed.h5ad')
-jostner = Convert(scanpy_ad, to = 'seurat')
+subset(markers231, gene == 'SLC9A3R2)
 ```

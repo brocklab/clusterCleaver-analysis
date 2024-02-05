@@ -89,48 +89,54 @@ import scanpy as sc
 adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 adatas = dataLoading.processFullAnndata(adataFull)
 # %%
-adata = adatas['mdamb231']
-if issparse(adata.X):
-    adata.X = adata.X.toarray()
-gene = 'TRAC'
-
-is0 = adata.obs['leiden'] == '0'
-is1 = adata.obs['leiden'] == '1'
-
-x0 = adata[is0.tolist(), gene].X.ravel()
-x1 = adata[is1.tolist(), gene].X.ravel()
-
-x0, x1 = searchOptimal.modifyEMD(x0, x1)
-
-bScore = bhattacharyyaHist(x0, x1)
-
-visualization.plotHists(adata, gene = gene)
-plt.title(f'{gene} Bhattacharyya {bScore:0.3f}')
-# %%
-bhattacharyyaHist(x0, x1)
-# %%
-p = x0.copy()
-q = x1.copy()
-full = np.concatenate([p, q])
-maxFull = np.max(full)
-minFull = np.min(full)
-# Calculate number of bins using Freedman-Diaconis rule
-fdB = freedmanDiaconis(p)
-nBins = int(np.ceil(np.abs(maxFull - minFull)/fdB))
-
-# %%
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 bhatGenes = searchOptimal.searchExpressionDist(adatas['mdamb231'], 
                                                  surfaceGenes['gene'],
                                                  metric = 'bhat', 
-                                                 modifier = 'remove0')
+                                                 modifier = 'no0').reset_index(drop = True)
+# %%
 emdGenes = searchOptimal.searchExpressionDist(adatas['mdamb231'], 
                                                  surfaceGenes['gene'],
                                                  metric = 'EMD', 
-                                                 modifier = 'remove0')
+                                                 modifier = 'remove0',
+                                                 scale = False).reset_index(drop = True)
+
 # %%
 emdGenes = emdGenes.sort_values(by = 'scores', ascending = False).reset_index(drop = True)
 
 emdGenes.head(20)
 
+# %%
+scaleData = lambda x:(x - min(x))/(max(x) - min(x))
+adata = adatas['mdamb231']
+if issparse(adata.X):
+    adata.X = adata.X.toarray()
+gene = 'ESAM'
+# gene = 'TMEM156'
+# gene = 'CLEC2B'
+# gene = 'ESAM'
+gene = 'SLCO4A1'
+is0 = adata.obs['leiden'] == '0'
+is1 = adata.obs['leiden'] == '1'
+
+expression = adata[:, gene].X
+
+# expression = scaleData(expression)
+
+x0 = expression[is0].ravel()
+x1 = expression[is1].ravel()
+
+x0, x1 = searchOptimal.modifyEMD(x0, x1, modifier = None)
+
+
+bScore = searchOptimal.bhattacharyyaHist(x0, x1)
+emdScore = wasserstein_distance(x0, x1)
+# visualization.plotHists(adata, gene = gene, truncate0 = False)
+visualization.plotModifiedHists(x0, x1, gene)
+
+print('Bscore ranking')
+print(bhatGenes.loc[bhatGenes['genes'] == gene])
+print('emd ranking')
+print(emdGenes.loc[emdGenes['genes'] == gene])
+print(f'emd: {emdScore:0.3f} ')
 # %%

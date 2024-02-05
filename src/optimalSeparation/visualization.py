@@ -19,13 +19,21 @@ def plotExpression(adata, genes, colorCol = 'leiden'):
     dfExpr.columns = [genes[0], genes[1], colorCol]
     sns.jointplot(data = dfExpr, x = genes[0], y = genes[1], hue = colorCol)
     
-def plotHists(adata, gene, colorCol = 'leiden', logScale = False, saveFig = ''):
+def plotHists(adata, gene, truncate0 = False, colorCol = 'leiden', logScale = False, saveFig = ''):
     surfaceIdx = np.where(adata.var.index.isin([gene]))[0][0]
     expression = adata.X[:, surfaceIdx]
+
     if scipy.sparse.issparse(expression):
         expression = expression.toarray()
 
-    dfHist = pd.DataFrame(expression, adata.obs[colorCol]).reset_index()
+    not0 = list(expression > 0)
+    
+    if truncate0:
+        expression = expression[not0]
+        colorVec = adata.obs[not0][colorCol].tolist()
+    else:
+        colorVec = adata.obs[colorCol]
+    dfHist = pd.DataFrame(expression, colorVec).reset_index()
     dfHist.columns = [colorCol, 'expression']
 
     dfHist[colorCol] = dfHist[colorCol].astype('category')
@@ -58,6 +66,39 @@ def plotHists(adata, gene, colorCol = 'leiden', logScale = False, saveFig = ''):
         else:
             print('Save path directory {saveDirectory} does not exist.')
 
+def plotModifiedHists(x0, x1, gene = 'gene'):
+    colorCol = 'leiden'
+    logScale = False
+    label0 = np.repeat('0', len(x0))
+    label1 = np.repeat('1', len(x1))
+    colorVec = np.concatenate([label0, label1])
+    dfHist = pd.DataFrame([colorVec, np.concatenate([x0, x1])]).T
+    dfHist.columns = [colorCol, 'expression']
+
+    dfHist[colorCol] = dfHist[colorCol].astype('category')
+    # , log_scale=(False, True)
+    plt.figure(figsize=(7,6))
+    plt.subplot(211)
+    sns.histplot(
+                data=dfHist, 
+                x='expression', 
+                hue=colorCol, 
+                element="poly", 
+                # stat='proportion',
+                log_scale = (False, logScale)).set(xlabel='')
+            
+    plt.subplot(212)
+    sns.stripplot(
+            data=dfHist, 
+            x='expression', 
+            hue=colorCol, 
+            native_scale=True,
+            legend = False,
+            alpha = 0.5,
+            # jitter = 0.45
+            jitter = True).set(
+        xlabel = f'{gene} Expression'
+    )   
 def plotParetoOptimal(optimalGenes, paretoOptimalGenes, nGenes = 1, metric = 'auc'):
     if nGenes not in [1, 2]:
         print('Number of genes must be one or two for plotting')

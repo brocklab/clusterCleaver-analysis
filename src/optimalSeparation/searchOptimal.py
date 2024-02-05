@@ -232,7 +232,7 @@ def vectorizedWasserstein(u_values, v_values):
 
     return wd
 
-def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', modifier = 'remove0', label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = [], minCounts = 100):
+def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, modifier = 'remove0', label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = [], minCounts = 100):
     """
     Computes the wasserstein (earth mover's distance) metric on gene expression data
 
@@ -251,7 +251,7 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', modifier = 'remove
         'bhat': bhattacharyyaHist
     }
     
-    assert modifier in ['remove0', None], 'Modifier must be "remove0" or None'
+    assert modifier in ['remove0', 'no0', None], 'Modifier must be "remove0" or None'
     if modifier == 'remove0':
         assert nGenes == 1, 'Number of genes must be 1 to remove low expression values'
     if issparse(adata.X):
@@ -286,10 +286,13 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', modifier = 'remove
 
     is0 = np.array(adata.obs[label] == '0').astype(bool)
     is1 = np.array(adata.obs[label] == '1').astype(bool)
+    surfaceCombosWrite = []
     for combo in tqdm(surfaceCombos):
         surfaceIdx = np.where(adata.var.index.isin(combo))[0]
         X = adata.X[:, surfaceIdx]
 
+        if scale == True:
+            X = (X - min(X))/(max(X) - min(X))
         X0 = X[is0, :]
         X1 = X[is1, :]
 
@@ -308,15 +311,24 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', modifier = 'remove
         if nGenes == 1:
             X0, X1 = modifyEMD(X0, X1, modifier)
             distFunc = metricDict[metric]
+            if len(X0) < minCounts or len(X1) < minCounts:
+                continue
             dist = distFunc(X0, X1)
+            comboScores.append(dist)
+            expressedClusters.append(cluster)
+            surfaceCombosWrite.append(combo)
         elif nGenes > 1:
             dist = sliced_wasserstein(X0, X1, num_proj = 50)
-        comboScores.append(dist)
-        expressedClusters.append(cluster)   
+            comboScores.append(dist)
+            expressedClusters.append(cluster)
+            surfaceCombosWrite.append(combo)
+
+            comboScores.append(dist)
+            expressedClusters.append(cluster)   
     if nGenes == 1:   
-        dfScores = pd.DataFrame({'genes': np.array(surfaceCombos).ravel(), 'scores': comboScores, 'cluster': expressedClusters})
+        dfScores = pd.DataFrame({'genes': np.array(surfaceCombosWrite).ravel(), 'scores': comboScores, 'cluster': expressedClusters})
     else:
-        geneDict = {f'gene{num+1}': np.array(surfaceCombos)[:, num] for num in range(0, nGenes)}
+        geneDict = {f'gene{num+1}': np.array(surfaceCombosWrite)[:, num] for num in range(0, nGenes)}
         geneDict['scores'] = comboScores
         dfScores = pd.DataFrame(geneDict)
     return dfScores.sort_values(by = 'scores', ascending = False)
@@ -334,19 +346,32 @@ def modifyEMD(X0, X1, modifier = 'remove0', minCounts = 100):
     Outputs:
     - X0New, X1New: Modified gene expression values
     """
-    if modifier != 'remove0':
+    if modifier not in ['remove0', 'no0']:
         return X0, X1
-    if X1.mean() > X0.mean():
+    # Other checks
+    
+    if modifier == 'remove0':
+
+        if X1.mean() > X0.mean():
+            X1New = X1[X1>0]
+            X0New = X0
+        elif X0.mean() > X1.mean():
+            X0New = X0[X0>0]
+            X1New = X1
+        else:
+            return X0, X1
+        if X0New.shape[0] < minCounts or X1New.shape[0] < minCounts:
+            return X0, X1
+        else:
+            return X0New, X1New
+    elif modifier == 'no0':
         X1New = X1[X1>0]
-        X0New = X0
-    elif X0.mean() > X1.mean():
         X0New = X0[X0>0]
-        X1New = X1
-    else:
-        return X0, X1
-    if X0New.shape[0] < minCounts or X1New.shape[0] < minCounts:
-        return X0, X1
-    else:
+
+        # if len(X1New) < minCounts:
+        #     X1New = X1
+        # if len(X0New) < minCounts:
+        #     X0New = X0
         return X0New, X1New
 
 def calculateKDE(y, covarianceFactor = 0.25):
@@ -417,4 +442,4 @@ def bhattacharyyaHist(p, q):
     hist2 = hist2/sum(hist2)
 
     bScore = bhattacharyya(hist1, hist2)    
-    return -np.log(bScore)
+    return bScore
