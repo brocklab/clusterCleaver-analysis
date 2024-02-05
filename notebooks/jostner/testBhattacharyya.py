@@ -1,6 +1,7 @@
 # %%
 import numpy as np
 from scipy.stats import gaussian_kde, iqr, wasserstein_distance
+from scipy.sparse import issparse
 import matplotlib.pyplot as plt
 
 # %%
@@ -89,8 +90,9 @@ adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 adatas = dataLoading.processFullAnndata(adataFull)
 # %%
 adata = adatas['mdamb231']
-# adata.X = adata.X.toarray()
-gene = 'ABCC6'
+if issparse(adata.X):
+    adata.X = adata.X.toarray()
+gene = 'TRAC'
 
 is0 = adata.obs['leiden'] == '0'
 is1 = adata.obs['leiden'] == '1'
@@ -118,9 +120,16 @@ nBins = int(np.ceil(np.abs(maxFull - minFull)/fdB))
 
 # %%
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
-emdGenesNew = searchOptimal.searchExpressionDist(adatas['mdamb231'], surfaceGenes['gene'], modifier = 'remove0')
+bhatGenes = searchOptimal.searchExpressionDist(adatas['mdamb231'], 
+                                                 surfaceGenes['gene'],
+                                                 metric = 'bhat', 
+                                                 modifier = 'remove0')
+emdGenes = searchOptimal.searchExpressionDist(adatas['mdamb231'], 
+                                                 surfaceGenes['gene'],
+                                                 metric = 'EMD', 
+                                                 modifier = 'remove0')
 # %%
-emdGenes = emdGenesNew.sort_values(by = 'scores', ascending = False).reset_index(drop = True)
+emdGenes = emdGenes.sort_values(by = 'scores', ascending = False).reset_index(drop = True)
 
 emdGenes.head(20)
 

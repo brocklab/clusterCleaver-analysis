@@ -232,7 +232,7 @@ def vectorizedWasserstein(u_values, v_values):
 
     return wd
 
-def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = [], minCounts = 100):
+def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', modifier = 'remove0', label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = [], minCounts = 100):
     """
     Computes the wasserstein (earth mover's distance) metric on gene expression data
 
@@ -246,6 +246,11 @@ def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'lei
     Outputs:
         - dfScores: Modified surface genes dataframe with a new separation score    
     """
+    metricDict = {
+        'EMD': wasserstein_distance,
+        'bhat': bhattacharyyaHist
+    }
+    
     assert modifier in ['remove0', None], 'Modifier must be "remove0" or None'
     if modifier == 'remove0':
         assert nGenes == 1, 'Number of genes must be 1 to remove low expression values'
@@ -302,8 +307,8 @@ def searchExpressionDist(adata, surfaceGenes, modifier = 'remove0', label = 'lei
         
         if nGenes == 1:
             X0, X1 = modifyEMD(X0, X1, modifier)
-            dist = wasserstein_distance(X0, X1)
-            # dist = bhattacharyyaHist(X0, X1)
+            distFunc = metricDict[metric]
+            dist = distFunc(X0, X1)
         elif nGenes > 1:
             dist = sliced_wasserstein(X0, X1, num_proj = 50)
         comboScores.append(dist)
