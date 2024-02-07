@@ -30,5 +30,5 @@ head(markers231, 10)
 ```
 
 ```{r}
-subset(markers231, gene == 'SLC9A3R2)
+subset(markers231, gene == 'HLA-B')
 ```

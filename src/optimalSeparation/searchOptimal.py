@@ -309,7 +309,7 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, mod
             cluster = -1
         
         if nGenes == 1:
-            X0, X1 = modifyEMD(X0, X1, modifier)
+            X0, X1 = modifyEMD(X0, X1, modifier, minCounts=minCounts)
             distFunc = metricDict[metric]
             if len(X0) < minCounts or len(X1) < minCounts:
                 continue
@@ -331,6 +331,8 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, mod
         geneDict = {f'gene{num+1}': np.array(surfaceCombosWrite)[:, num] for num in range(0, nGenes)}
         geneDict['scores'] = comboScores
         dfScores = pd.DataFrame(geneDict)
+
+    dfScores['genes'] = dfScores['genes'].astype('string')
     return dfScores.sort_values(by = 'scores', ascending = False)
 
 def modifyEMD(X0, X1, modifier = 'remove0', minCounts = 100):
@@ -346,6 +348,7 @@ def modifyEMD(X0, X1, modifier = 'remove0', minCounts = 100):
     Outputs:
     - X0New, X1New: Modified gene expression values
     """
+    assert modifier in ['remove0', 'no0', None]
     if modifier not in ['remove0', 'no0']:
         return X0, X1
     # Other checks
