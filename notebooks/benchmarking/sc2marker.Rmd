@@ -1,6 +1,7 @@
 ```{r}
 require(sc2marker)
 require(Seurat)
+require(SeuratWrappers)
 ```
 
 ```{r}
@@ -30,5 +31,29 @@ head(markers231, 10)
 ```
 
 ```{r}
-subset(markers231, gene == 'HLA-B')
+subset(markers231, gene == 'SPINT2')
+```
+
+```{r}
+seu <- RunALRA(seu)
+```
+
+```{r}
+seu <- NormalizeData(seu, assay = "RNA")
+
+DefaultAssay(seu) <- "alra"
+FeaturePlot(seu, 'ESAM')
+
+DefaultAssay(seu) <- "RNA"
+FeaturePlot(seu, 'ESAM')
+```
+
+```{r}
+DefaultAssay(seu) <- "alra"
+assayData = GetAssayData(seu, slot = 'counts', assy = 'alra')
+
+write.table(as.matrix(assayData), './231CountsAlra.csv',
+            sep = ',', row.names = T, col.names = T, quote = F)
+
+
 ```
