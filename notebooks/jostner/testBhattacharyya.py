@@ -11,6 +11,11 @@ import scanpy as sc
 adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 adatas = dataLoading.processFullAnndata(adataFull)
 # %%
+for cellLine, adata in adatas.items():
+    adata.write_h5ad(f'../../data/h5ads/final/jostner_{cellLine}.h5ad')
+    
+# %%
+# %%
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 bhatGenes = searchOptimal.searchExpressionDist(adatas['mdamb231'], 
                                                  surfaceGenes['gene'],
