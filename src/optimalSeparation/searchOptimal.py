@@ -291,13 +291,18 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, mod
         surfaceIdx = np.where(adata.var.index.isin(combo))[0]
         X = adata.X[:, surfaceIdx]
 
-        if scale == True:
+        if sum(X) == 0:
+            continue
+        if scale:
             X = (X - min(X))/(max(X) - min(X))
+
+        
         X0 = X[is0, :]
         X1 = X[is1, :]
 
-        # if sum(X0) == 0 or sum(X1) == 0:
-        #     continue
+        # print(f"{combo} : {sum(X0)} \t {sum(X1)} \t {surfaceIdx}")
+        if sum(X0) == 0 or sum(X1) == 0:
+            continue
         if nGenes == 1:
             X0 = X0.ravel()
             X1 = X1.ravel()
@@ -324,7 +329,9 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, mod
             surfaceCombosWrite.append(combo)
 
             comboScores.append(dist)
-            expressedClusters.append(cluster)   
+            expressedClusters.append(cluster)
+
+    
     if nGenes == 1:   
         dfScores = pd.DataFrame({'genes': np.array(surfaceCombosWrite).ravel(), 'scores': comboScores, 'cluster': expressedClusters})
     else:
@@ -348,6 +355,8 @@ def modifyEMD(X0, X1, modifier = 'remove0', minCounts = 100):
     Outputs:
     - X0New, X1New: Modified gene expression values
     """
+    X0 = X0.copy()
+    X1 = X1.copy()
     assert modifier in ['remove0', 'no0', None]
     if modifier not in ['remove0', 'no0']:
         return X0, X1
@@ -439,8 +448,8 @@ def bhattacharyyaHist(p, q):
         nBins = sturgesRule(p)
     # Calculate and normalize counts
     histRange = (minFull, maxFull)
-    hist1, _ = np.histogram(p, bins = nBins, range = histRange)
-    hist2, _ = np.histogram(q, bins = nBins, range = histRange)
+    hist1, _ = np.histogram(p, bins = 'auto', range = histRange)
+    hist2, _ = np.histogram(q, bins = 'auto', range = histRange)
     hist1 = hist1/sum(hist1)
     hist2 = hist2/sum(hist2)
 

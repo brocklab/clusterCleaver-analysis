@@ -38,8 +38,8 @@ plt.fill_between(x, y, alpha = 0.5)
 plt.figure(figsize = (12,4))
 
 plt.subplot(131)
-x1 = np.random.normal(0, 1, 10000)
-x2 = np.random.normal(0.75, 1, 10000)
+x1 = np.random.normal(5, 1, 10000)
+x2 = np.random.normal(5.75, 1, 10000)
 EMD = wasserstein_distance(x1, x2)
 
 
@@ -52,8 +52,8 @@ plt.yticks([])
 plt.xlabel('Gene Expression')
 
 plt.subplot(132)
-x1 = np.random.normal(0, 1.5, 10000)
-x2 = np.random.normal(2, 1, 10000)
+x1 = np.random.normal(5, 1.5, 10000)
+x2 = np.random.normal(7, 1, 10000)
 EMD = wasserstein_distance(x1, x2)
 plt.hist(x1, alpha = 0.5)
 plt.hist(x2, alpha = 0.5)
@@ -64,8 +64,8 @@ plt.yticks([])
 plt.xlabel('Gene Expression')
 
 plt.subplot(133)
-x1 = np.random.normal(0, 1, 10000)
-x2 = np.random.normal(8, 1, 10000)
+x1 = np.random.normal(5, 1, 10000)
+x2 = np.random.normal(13, 1, 10000)
 EMD = wasserstein_distance(x1, x2)
 plt.hist(x1, alpha = 0.5)
 plt.hist(x2, alpha = 0.5)
@@ -78,3 +78,47 @@ plt.xlabel('Gene Expression')
 
 plt.savefig('../../figures/emdExemplar/emdExample.png', dpi = 500)
 # %%
+from optimalSeparation.searchOptimal import bhattacharyyaHist
+
+plt.figure(figsize = (12,4))
+
+plt.subplot(131)
+x1 = np.random.normal(5, 1, 10000)
+x2 = np.random.normal(5.75, 1, 10000)
+bhattacharyya = bhattacharyyaHist(x1, x2)
+
+
+plt.hist(x1, alpha = 0.5)
+plt.hist(x2, alpha = 0.5)
+plt.title(f'Bhattacharyya: {bhattacharyya:0.2f}')
+
+# plt.xticks([])
+plt.yticks([])
+plt.xlabel('Gene Expression')
+
+plt.subplot(132)
+x1 = np.random.normal(5, 1.5, 10000)
+x2 = np.random.normal(7, 1, 10000)
+bhattacharyya = bhattacharyyaHist(x1, x2)
+plt.hist(x1, alpha = 0.5)
+plt.hist(x2, alpha = 0.5)
+plt.title(f'Bhattacharyya: {bhattacharyya:0.2f}')
+
+# plt.xticks([])
+plt.yticks([])
+plt.xlabel('Gene Expression')
+
+plt.subplot(133)
+x1 = np.random.normal(5, 1, 10000)
+x2 = np.random.normal(13, 1, 10000)
+bhattacharyya = bhattacharyyaHist(x1, x2)
+plt.hist(x1, alpha = 0.5)
+plt.hist(x2, alpha = 0.5)
+plt.title(f'Bhattacharyya: {bhattacharyya:0.2f}')
+
+# plt.xticks([])
+plt.yticks([])
+plt.xlabel('Gene Expression')
+
+
+plt.savefig('../../figures/emdExemplar/bhattacharyyaExemplar.png', dpi = 500)

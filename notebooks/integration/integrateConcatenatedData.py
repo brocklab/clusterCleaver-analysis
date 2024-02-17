@@ -4,7 +4,7 @@ import scvi
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib
+import matplotlib.gridspec as gridspec
 
 # %%
 adata_raw = sc.read_h5ad(
@@ -58,4 +58,56 @@ max_epochs_scvi = np.min([round((20000 / adata.n_obs) * 400), 400])
 max_epochs_scvi
 # %%
 model_scvi.train()
+# %%
+from scrna.cluster.main import compute_dimensionality_reductions
+
+sc.pp.highly_variable_genes(adata_raw, min_mean=0.0125, max_mean=3, min_disp=0.5)
+compute_dimensionality_reductions(adata_raw)
+# %%
+adata_raw.write_h5ad('../../data/h5ads/adata_concatInnerNormalized.h5ad')
+# %%
+adata = adata_raw
+adata.obs['cellLine-batch'] = adata.obs['cellLine'].str[0:] + '-' + adata.obs['batch'].str[0:]
+fig = plt.figure(figsize = (8, 8))
+gs = gridspec.GridSpec(1, 1)
+gs.update(wspace = 0.5, hspace = 0.5)
+ax1 = plt.subplot(gs[0, 0])
+
+ax1.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+ax1.set_xticks([])
+ax1.set_yticks([])
+ax1.set_xlabel('UMAP 1', loc = 'left')
+ax1.set_ylabel('UMAP 2', loc = 'bottom')
+
+
+umappts = adata.obsm['X_umap'].copy()
+identity = adata.obs['cellLine-batch']
+for cellLine in adata.obs['cellLine-batch'].unique():
+        isSample = identity == cellLine
+        X = umappts[isSample, 0].copy()
+        Y = umappts[isSample, 1].copy()
+
+        ax1.scatter(X, Y, s = 2)
+
+xmin, xmax = ax1.get_xlim() 
+ymin, ymax = ax1.get_ylim()
+
+
+ax1.arrow(xmin, ymin, 2.33, 0., fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+
+ax1.arrow(xmin, ymin, 0., 3, fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+ax1.xaxis.set_label_coords(0.05, 0.025)
+ax1.yaxis.set_label_coords(0.025, 0.05)
+
+ax1.xaxis.label.set_fontsize(15)
+ax1.yaxis.label.set_fontsize(15)
+
+fig.savefig('../../figures/panCancerUMAP.png', dpi = 500, bbox_inches='tight')
+
 # %%

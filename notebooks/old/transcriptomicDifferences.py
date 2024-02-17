@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 # %%
-adata231 = sc.read_h5ad('../data/h5ads/231-1KB3-20231013.h5ad')
+adata231 = sc.read_h5ad('../../data/h5ads/231-1KB3-20231013.h5ad')
 adata231 = adata231[adata231.obs['sample'].isin(['PT', 'C2'])]
 adata231.obs['subsample'] = 'C2'
 # %%
@@ -23,7 +23,7 @@ sc.pl.umap(adataEsam, color = ['leiden', 'ESAM'])
 adata231.obs.loc[adataEsam.obs.loc[adataEsam.obs['leiden'] == '0'].index, 'subsample'] = 'ESAM Neg'
 adata231.obs.loc[adataEsam.obs.loc[adataEsam.obs['leiden'] == '1'].index, 'subsample'] = 'ESAM Pos'
 # %%
-adatabt474 = sc.read_h5ad('../data/h5ads/BT474LineageAssigned.h5ad')
+adatabt474 = sc.read_h5ad('../../data/h5ads/BT474LineageAssigned.h5ad')
 adatabt474 = adatabt474[adatabt474.obs['sample'] == 'LPD7']
 sc.pp.highly_variable_genes(adatabt474)
 compute_dimensionality_reductions(adatabt474)
@@ -193,7 +193,7 @@ ax2.set_xticks([])
 ax2.set_yticks([])
 ax2.set_xlabel('', loc = 'left')
 ax2.set_ylabel('', loc = 'bottom')
-ax2.set_title('MDA-MB-231')
+ax2.set_title('MDA-MB-231 Subpopulations')
 
 for cat in identity.unique():
     if cat in ['C2', 'ESAM Neg', 'ESAM Pos']:
@@ -241,10 +241,175 @@ lgnd.get_frame().set_linewidth(0.0)
 
 for handle in lgnd.legend_handles:
     handle.set_sizes([100])
-fig.savefig('../figures/umapConcat.png', dpi = 500, bbox_inches='tight')
+fig.savefig('../../figures/umapConcat.png', dpi = 500, bbox_inches='tight')
 # %%
+umappts = adata.obsm['X_umap'].copy()
+identity = adata.obs['sample'].copy()
+plt.rcParams.update({'font.size': 18})
+
+# plt.rcParams["axes.spines.right"] = False
+# plt.rcParams["axes.spines.top"] = False
+
+# fig, axs = plt.subplots(1, 3, figsize = (20,16))
+fig = plt.figure(figsize = (25, 10))
+gs = gridspec.GridSpec(1, 3)
+gs.update(wspace = 0.5, hspace = 0.5)
+ax1 = plt.subplot(gs[0])
+# ax1 = axs[0]
+
+ax1.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+
+ax1.set_xticks([])
+ax1.set_yticks([])
+ax1.set_xlabel('UMAP 1', loc = 'left')
+ax1.set_ylabel('UMAP 2', loc = 'bottom')
+ax1.set_title('MDA-MB-231 Samples')
+
+for cat in identity.unique():
+    if cat in ['C2', 'PT']:
+        isSample = identity == cat
+        X = umappts[isSample, 0].copy()
+        Y = umappts[isSample, 1].copy()
+
+        ax1.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat])
+lgnd = ax1.legend(prop=dict(size=18), bbox_to_anchor=(1, 0.5),
+                         loc='center left', borderaxespad=0.)
+
+for handle in lgnd.legend_handles:
+    handle.set_sizes([100])
+lgnd.get_frame().set_linewidth(0.0)
+
+xmin, xmax = ax1.get_xlim() 
+ymin, ymax = ax1.get_ylim()
 
 
+ax1.arrow(xmin, ymin, 1.8, 0., fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+
+ax1.arrow(xmin, ymin, 0., 2, fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+ax1.xaxis.set_label_coords(0.05, 0.025)
+ax1.yaxis.set_label_coords(0.025, 0.05)
+
+ax1.xaxis.label.set_fontsize(15)
+ax1.yaxis.label.set_fontsize(15)
+
+identity = adata.obs['subsample']
+# ax2 = axs[1]
+ax2 = plt.subplot(gs[1])
+
+ax2.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+
+ax2.set_xticks([])
+ax2.set_yticks([])
+ax2.set_xlabel('', loc = 'left')
+ax2.set_ylabel('', loc = 'bottom')
+ax2.set_title('MDA-MB-231 Subpopulations')
+
+for cat in identity.unique():
+    if cat in ['C2', 'ESAM Neg', 'ESAM Pos']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
+
+
+        ax2.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat])
+
+lgnd = ax2.legend(prop=dict(size=18), bbox_to_anchor=(1, 0.5),
+                         loc='center left', borderaxespad=0.)
+
+for handle in lgnd.legend_handles:
+    handle.set_sizes([100])
+lgnd.get_frame().set_linewidth(0.0)
+
+ax3 = plt.subplot(gs[2])
+
+ax3.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+
+ax3.set_xticks([])
+ax3.set_yticks([])
+ax3.set_xlabel('', loc = 'left')
+ax3.set_ylabel('', loc = 'bottom')
+ax3.set_title('BT474 Subpopulations')
+
+for cat in identity.unique():
+    if cat in ['LPDOther']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
+
+        ax3.scatter(X, Y, c = colorDict[cat], s = 10, label = allLabelDict[cat])
+    if cat in ['Lin1']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
+
+        ax3.scatter(X, Y, c = colorDict[cat], s = 50, label = allLabelDict[cat])
+lgnd = ax3.legend(prop=dict(size=18), bbox_to_anchor=(1, 0.5),
+                         loc='center left', borderaxespad=0.)
+
+lgnd.get_frame().set_linewidth(0.0)
+
+for handle in lgnd.legend_handles:
+    handle.set_sizes([100])
+fig.savefig('../../figures/umapConcatHoriz.png', dpi = 500, bbox_inches='tight')
+# %%
+umappts = adata.obsm['X_umap'].copy()
+identity = adata.obs['sample'].copy()
+plt.rcParams.update({'font.size': 18})
+
+# plt.rcParams["axes.spines.right"] = False
+# plt.rcParams["axes.spines.top"] = False
+
+# fig, axs = plt.subplots(1, 3, figsize = (20,16))
+fig = plt.figure(figsize = (25/3, 10))
+gs = gridspec.GridSpec(1, 1)
+gs.update(wspace = 0.5, hspace = 0.5)
+ax2 = plt.subplot(gs[0])
+
+
+identity = adata.obs['subsample']
+# ax2 = axs[1]
+
+ax2.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+
+ax2.set_xticks([])
+ax2.set_yticks([])
+ax2.set_xlabel('', loc = 'left')
+ax2.set_ylabel('', loc = 'bottom')
+ax2.set_title('MDA-MB-231 Subpopulations')
+
+esamVal = adataEsam[:, 'ESAM'].X.toarray().ravel()
+for cat in identity.unique():
+    if cat in ['ESAM Neg', 'ESAM Pos']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
+
+
+        ax2.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat])
+
+for cat in identity.unique():
+    if cat in ['C2']:
+        isSample = identity == cat
+        X = umappts[isSample, 0]
+        Y = umappts[isSample, 1]
+
+
+        ax2.scatter(X, Y, c = colorDict[cat], s = 2, label = allLabelDict[cat])
+
+lgnd = ax2.legend(prop=dict(size=18), bbox_to_anchor=(1, 0.5),
+                         loc='center left', borderaxespad=0.)
+
+for handle in lgnd.legend_handles:
+    handle.set_sizes([100])
+lgnd.get_frame().set_linewidth(0.0)
+
+# %%
 gs = gridspec.GridSpec(4, 4)
 
 ax1 = plt.subplot(gs[:2, :2])
@@ -257,53 +422,3 @@ ax3 = plt.subplot(gs[2:4, 1:3])
 ax3.plot(range(0,10), range(0,10))
 
 plt.show()
-# %%
-adata231 = sc.read_h5ad('../data/h5ads/231-1KB3-20231013.h5ad')
-# %%
-# sc.pl.umap(adata231[adata231.obs['sample'].isin(['PT', 'C2'])], color = 'sample')
-adata231 = adata231[adata231.obs['sample'].isin(['PT', 'C2'])]
-
-# sc.pp.highly_variable_genes(adata231)
-# compute_dimensionality_reductions(adata231)
-X_pca = adata231.X
-samplePCA = {}
-for sample in adata231.obs['sample'].unique():
-    samplePCA[sample] = X_pca[adata231.obs['sample'] == sample, :].mean(axis = 0).tolist()[0]
-pcaVals = pd.DataFrame(samplePCA)
-pcaCorr = pcaVals.corr(method = 'spearman')
-
-sns.heatmap(pcaCorr, annot=True, fmt='.3').set_title('Pearson Correlation of\nPopulations')
-sc.pl.umap(adata231, color = 'sample')
-sc.pl.pca(adata231, color = 'sample')
-# %%
-adatabt474 = sc.read_h5ad('../data/h5ads/BT474LineageAssigned.h5ad')
-adatabt474 = adatabt474[adatabt474.obs['sample'].isin(['LPD7', 'DLP5'])]
-sc.pp.highly_variable_genes(adatabt474)
-compute_dimensionality_reductions(adatabt474)
-# %%
-X_pca = adatabt474.obsm['X_pca']
-samplePCA = {}
-for sample in adatabt474.obs['sample'].unique():
-    samplePCA[sample] = X_pca[adatabt474.obs['sample'] == sample, :].mean(axis = 0)
-pcaVals = pd.DataFrame(samplePCA)
-pcaCorr = pcaVals.corr()
-pcaVals = pd.DataFrame(samplePCA)
-pcaCorr = pcaVals.corr()
-
-sns.heatmap(pcaCorr, annot=True, fmt='.3').set_title('Pearson Correlation of\nPopulations')
-sc.pl.umap(adatabt474, color = 'sample')
-sc.pl.pca(adatabt474, color = 'sample')
-# %%import seaborn as sns
-from sklearn.decomposition import PCA
-iris = sns.load_dataset('iris')
-iris = iris.loc[iris['species'].isin(['setosa', 'virginica'])]
-pca = PCA(n_components = 2)
-X = iris.loc[:, iris.columns != 'species'].to_numpy()
-pcaVals = pca.fit_transform(X)
-
-samplePCA = {}
-for sample in iris['species'].unique():
-    samplePCA[sample] = pcaVals[iris['species'] == sample, :].mean(axis = 0)
-pcaVals = pd.DataFrame(samplePCA)
-pcaCorr = pcaVals.corr()
-# %%

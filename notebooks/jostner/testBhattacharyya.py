@@ -22,7 +22,28 @@ bhatGenes = searchOptimal.searchExpressionDist(adatas['mdamb231'],
                                                  metric = 'bhat', 
                                                  modifier = 'no0').reset_index(drop = True).sort_values(by = 'scores', ascending = True)
 # %%
-cellLine = 'mdamb436'
+cellLine = 'mdamb231'
+bhatGenesNoMod = searchOptimal.searchExpressionDist(adatas[cellLine], 
+                                                 surfaceGenes['gene'],
+                                                 metric = 'bhat', 
+                                                 modifier = None,
+                                                 minCounts = 100,
+                                                 scale = True).reset_index(drop = True)
+
+bhatGenesRemove0 = searchOptimal.searchExpressionDist(adatas[cellLine], 
+                                                 surfaceGenes['gene'],
+                                                 metric = 'bhat', 
+                                                 modifier = 'remove0',
+                                                 minCounts = 100,
+                                                 scale = True).reset_index(drop = True)
+
+bhatGenesNo0 = searchOptimal.searchExpressionDist(adatas[cellLine], 
+                                                 surfaceGenes['gene'],
+                                                 metric = 'bhat', 
+                                                 modifier = 'no0',
+                                                 minCounts = 100,
+                                                 scale = True).reset_index(drop = True)
+# %%
 emdGenesNoMod = searchOptimal.searchExpressionDist(adatas[cellLine], 
                                                  surfaceGenes['gene'],
                                                  metric = 'EMD', 
@@ -49,21 +70,21 @@ emdGenes = searchOptimal.searchExpressionDist(adatas[cellLine],
 
 # %%
 emdGenes = emdGenes.sort_values(by = 'scores', ascending = False).reset_index(drop = True)
-
-emdGenes.head(20)
+bhatGenesRemove0 = bhatGenesRemove0.sort_values(by = 'scores', ascending = True).reset_index(drop = True)
+emdGenesRemove0.head(20)
 
 # %%
-
+cellLine = 'mdamb231'
 scaleData = lambda x:(x - min(x))/(max(x) - min(x))
-adata = adatas['mdamb436']
+adata = adatas[cellLine]
 if issparse(adata.X):
     adata.X = adata.X.toarray()
-# gene = 'TSPAN8'
+gene = 'TRAC'
 # gene = 'TMEM156'
-# gene = 'SPINT2'
+gene = 'SLCO4A1'
 # gene = 'ESAM'
 # gene = 'MAL2'
-gene = 'IL13RA2'
+# gene = 'PCDH7'
 is0 = adata.obs['leiden'] == '0'
 is1 = adata.obs['leiden'] == '1'
 
@@ -79,18 +100,18 @@ x0, x1 = searchOptimal.modifyEMD(x0, x1, modifier = 'no0')
 
 bScore = searchOptimal.bhattacharyyaHist(x0, x1)
 emdScore = wasserstein_distance(x0, x1)
-# visualization.plotHists(adata, gene = gene, truncate0 = False)
-# visualization.plotModifiedHists(x0, x1, gene)
+visualization.plotHists(adata, gene = gene, truncate0 = False)
+visualization.plotModifiedHists(x0, x1, gene)
 
 # print('Bscore ranking')
 # print(bhatGenes.loc[bhatGenes['genes'] == gene])
 # print('emd ranking')
 # print(emdGenes.loc[emdGenes['genes'] == gene])
 # print(f'emd: {emdScore:0.3f} ')
+print(f'x0: {len(x0)} \t x1: {len(x1)}')
 
-x0 = expression[is0].ravel()
-x1 = expression[is1].ravel()
 
+# %%
 modDict = {None: emdGenesNoMod,
            'remove0': emdGenesRemove0,
            'no0': emdGenesNo0}
@@ -106,7 +127,7 @@ for k, df in modDict.items():
 
     score = wasserstein_distance(x0New, x1New)
     print(f'{k}: {rank} \t {score:0.3f}')
-    visualization.plotModifiedHists(x0New, x1New, gene)
+    # visualization.plotModifiedHists(x0New, x1New, gene)
 
 # %%
 import pandas as pd
