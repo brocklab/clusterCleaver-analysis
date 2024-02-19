@@ -195,7 +195,6 @@ logs/**
 
 figures/
 
-!notebooks/
 # Misc
 /notebooks/cometSC/**
 /workflow/Snakefile
