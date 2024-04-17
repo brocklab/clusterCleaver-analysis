@@ -23,23 +23,24 @@ sc.pl.umap(adataEsam, color = ['leiden', 'ESAM'])
 adata231.obs.loc[adataEsam.obs.loc[adataEsam.obs['leiden'] == '0'].index, 'subsample'] = 'ESAM Neg'
 adata231.obs.loc[adataEsam.obs.loc[adataEsam.obs['leiden'] == '1'].index, 'subsample'] = 'ESAM Pos'
 # %%
-adatabt474 = sc.read_h5ad('../../data/h5ads/BT474LineageAssigned.h5ad')
-adatabt474 = adatabt474[adatabt474.obs['sample'] == 'LPD7']
-sc.pp.highly_variable_genes(adatabt474)
-compute_dimensionality_reductions(adatabt474)
+sc.pp.highly_variable_genes(adata231)
+compute_dimensionality_reductions(adata231)
 # %%
-lin1 = 'GTGAGTCAGTCACACAGTCA'
-isLin1 = adatabt474.obs['collapsedLineages'] == lin1
-adatabt474.obs['lin1'] = 'lpdOther'
-adatabt474.obs.loc[isLin1, 'lin1'] = 'lin1'
-adatabt474.obs['lin1'] = adatabt474.obs['lin1'].astype('category')
-adatabt474.obs['subsample'] = 'LPDOther'
-adatabt474.obs.loc[isLin1, 'subsample'] = 'Lin1'
+adata436 = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 # %%
-adata = sc.concat([adata231, adatabt474])
+adata436 = adata436[adata436.obs['scDblFinder_class'] == 'singlet']
+adata436 = adata436[adata436.obs['sample'] == 'mdamb436']
+sc.pp.highly_variable_genes(adata436, min_mean=0.0125, max_mean=3, min_disp=0.5)
+compute_dimensionality_reductions(adata436)
 # %%
-sc.pp.highly_variable_genes(adata)
-compute_dimensionality_reductions(adata)
+sc.tl.leiden(adata436, resolution=0.1)
+sc.pl.umap(adata436, color = ['leiden', 'BST2'])
+adata436.obs['subsample'] = adata436.obs['leiden']
+# %%
+adata = sc.concat([adata231, adata436])
+# %%
+# sc.pp.highly_variable_genes(adata)
+# compute_dimensionality_reductions(adata)
 # %%
 sc.pl.umap(adata, color = ['sample', 'subsample'])
 # %%
@@ -48,11 +49,14 @@ sc.pl.dendrogram(adata, groupby = 'subsample')
 # %%
 sampleDict = { 'C2':    'Treated',
                'LPD7':  'BT474\nLap/Pac/Dox\nTreated',
-               'PT':    'Untreated'
+               'PT':    'Untreated',
+               'mdamb436': 'MDA-MB-436'
 }
 
-subsampleDict = {'ESAM Neg': 'Subpop 1',
-                 'ESAM Pos': 'Subpop 2',
+subsampleDict = {'ESAM Neg': '231-Subpop 1',
+                 'ESAM Pos': '231-Subpop 2',
+                 '0'       : '436-Subpop 1',
+                 '1'       : '436-Subpop 2',
                  'LPDOther': 'Other',
                  'Lin1':     'Lineage 1',
                  'treated':  'Treated'}
@@ -71,6 +75,8 @@ isESAMPos = adata.obs['subsample']  == 'ESAM Pos'
 isESAMNeg = adata.obs['subsample']  == 'ESAM Neg'
 isLin1 =    adata.obs['subsample']  == 'Lin1'
 isOther =   adata.obs['subsample']  == 'LPDOther'
+is0 =       adata.obs['subsample']  == '0'
+is1 =       adata.obs['subsample']  == '1'
 
 X   = adata.obsm['X_pca']
 # X = adata.X
@@ -81,19 +87,19 @@ ESAMNeg =   X[isESAMNeg, :].mean(axis = 0).tolist()
 lin1  =     X[isLin1, :].mean(axis = 0).tolist()
 lpdOther =  X[isOther, :].mean(axis = 0).tolist()
 # %%
-pcaVals = {'C2': C2, 'PT': PT, 'ESAM Pos': ESAMPos, 'ESAM Neg': ESAMNeg, 'Lin1': lin1, 'LPDOther': lpdOther}
-for key in list(pcaVals.keys()):
-    newKey = ''
-    if key in sampleDict.keys():
-        newKey = sampleDict[key]
-    elif key in subsampleDict.keys():
-        newKey = subsampleDict[key]
+# pcaVals = {'C2': C2, 'PT': PT, 'ESAM Pos': ESAMPos, 'ESAM Neg': ESAMNeg, 'Lin1': lin1, 'LPDOther': lpdOther}
+# for key in list(pcaVals.keys()):
+#     newKey = ''
+#     if key in sampleDict.keys():
+#         newKey = sampleDict[key]
+#     elif key in subsampleDict.keys():
+#         newKey = subsampleDict[key]
 
-    pcaVals[newKey] = pcaVals.pop(key)   
-dfPcaVals = pd.DataFrame(pcaVals)
-pcaCorr = dfPcaVals.corr()
+#     pcaVals[newKey] = pcaVals.pop(key)   
+# dfPcaVals = pd.DataFrame(pcaVals)
+# pcaCorr = dfPcaVals.corr()
 
-sns.heatmap(pcaCorr, annot=True, fmt='.3').set_title('Pearson Correlation of\nPopulations')
+# sns.heatmap(pcaCorr, annot=True, fmt='.3').set_title('Pearson Correlation of\nPopulations')
 # %%
 # Treated vs untreated MDAMB231s
 # ESAM + vs ESAM -
@@ -122,8 +128,8 @@ colorDict = {'LPD7':            '#002bff',
              'ESAM Neg':        '#e43820',
              'C2':              '#4bc1ee',
              'PT':              '#7d1811',
-             'LPDOther':        '#2e336a',
-             'Lin1':            '#fed504'
+             '0':               '#2e336a',
+             '1':               '#fed504'
              }
 
 # %% Plot samples
@@ -219,21 +225,21 @@ ax3.set_xticks([])
 ax3.set_yticks([])
 ax3.set_xlabel('', loc = 'left')
 ax3.set_ylabel('', loc = 'bottom')
-ax3.set_title('BT474 Subpopulations')
+ax3.set_title('MDA-MB-436 Subpopulations')
 
 for cat in identity.unique():
-    if cat in ['LPDOther']:
+    if cat in ['0']:
         isSample = identity == cat
         X = umappts[isSample, 0]
         Y = umappts[isSample, 1]
 
-        ax3.scatter(X, Y, c = colorDict[cat], s = 10, label = allLabelDict[cat])
-    if cat in ['Lin1']:
+        ax3.scatter(X, Y, c = colorDict[cat], s = 25, label = allLabelDict[cat])
+    if cat in ['1']:
         isSample = identity == cat
         X = umappts[isSample, 0]
         Y = umappts[isSample, 1]
 
-        ax3.scatter(X, Y, c = colorDict[cat], s = 50, label = allLabelDict[cat])
+        ax3.scatter(X, Y, c = colorDict[cat], s = 25, label = allLabelDict[cat])
 lgnd = ax3.legend(prop=dict(size=15), bbox_to_anchor=(1, 0.5),
                          loc='center left', borderaxespad=0.)
 
@@ -241,7 +247,7 @@ lgnd.get_frame().set_linewidth(0.0)
 
 for handle in lgnd.legend_handles:
     handle.set_sizes([100])
-fig.savefig('../../figures/umapConcat.png', dpi = 500, bbox_inches='tight')
+# fig.savefig('../../figures/umapConcat.png', dpi = 500, bbox_inches='tight')
 # %%
 umappts = adata.obsm['X_umap'].copy()
 identity = adata.obs['sample'].copy()
@@ -251,7 +257,7 @@ plt.rcParams.update({'font.size': 18})
 # plt.rcParams["axes.spines.top"] = False
 
 # fig, axs = plt.subplots(1, 3, figsize = (20,16))
-fig = plt.figure(figsize = (25, 10))
+fig = plt.figure(figsize = (30, 10))
 gs = gridspec.GridSpec(1, 3)
 gs.update(wspace = 0.5, hspace = 0.5)
 ax1 = plt.subplot(gs[0])
@@ -337,18 +343,18 @@ ax3.set_ylabel('', loc = 'bottom')
 ax3.set_title('BT474 Subpopulations')
 
 for cat in identity.unique():
-    if cat in ['LPDOther']:
+    if cat in ['0']:
         isSample = identity == cat
         X = umappts[isSample, 0]
         Y = umappts[isSample, 1]
 
-        ax3.scatter(X, Y, c = colorDict[cat], s = 10, label = allLabelDict[cat])
-    if cat in ['Lin1']:
+        ax3.scatter(X, Y, c = colorDict[cat], s = 25, label = allLabelDict[cat])
+    if cat in ['1']:
         isSample = identity == cat
         X = umappts[isSample, 0]
         Y = umappts[isSample, 1]
 
-        ax3.scatter(X, Y, c = colorDict[cat], s = 50, label = allLabelDict[cat])
+        ax3.scatter(X, Y, c = colorDict[cat], s = 25, label = allLabelDict[cat])
 lgnd = ax3.legend(prop=dict(size=18), bbox_to_anchor=(1, 0.5),
                          loc='center left', borderaxespad=0.)
 
@@ -422,3 +428,65 @@ ax3 = plt.subplot(gs[2:4, 1:3])
 ax3.plot(range(0,10), range(0,10))
 
 plt.show()
+# %%
+colorDict['0'] = colorDict['ESAM Neg']
+colorDict['1'] = colorDict['ESAM Pos']
+allLabelDict['0'] = 'Subpop 1'
+allLabelDict['1'] = 'Subpop 2'
+
+umappts = adataEsam.obsm['X_umap'].copy()
+identity = adataEsam.obs['leiden'].copy()
+plt.rcParams.update({'font.size': 18})
+
+# plt.rcParams["axes.spines.right"] = False
+# plt.rcParams["axes.spines.top"] = False
+
+# fig, axs = plt.subplots(1, 3, figsize = (20,16))
+fig = plt.figure(figsize = (8, 8))
+gs = gridspec.GridSpec(1,1)
+gs.update(wspace = 0.5, hspace = 0.5)
+ax1 = plt.subplot(gs[0])
+# ax1 = axs[0]
+
+ax1.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+
+ax1.set_xticks([])
+ax1.set_yticks([])
+ax1.set_xlabel('UMAP 1', loc = 'left')
+ax1.set_ylabel('UMAP 2', loc = 'bottom')
+ax1.set_title('MDA-MB-231 Subpopulations')
+
+for cat in identity.unique():
+    
+    isSample = identity == cat
+    X = umappts[isSample, 0].copy()
+    Y = umappts[isSample, 1].copy()
+
+    ax1.scatter(X, Y, c = colorDict[cat], s = 10, label = allLabelDict[cat]) 
+lgnd = ax1.legend(prop=dict(size=15), bbox_to_anchor=(1, 0.5),
+                         loc='center left', borderaxespad=0.)
+
+for handle in lgnd.legend_handles:
+    handle.set_sizes([100])
+lgnd.get_frame().set_linewidth(0.0)
+
+xmin, xmax = ax1.get_xlim() 
+ymin, ymax = ax1.get_ylim()
+
+
+ax1.arrow(xmin, ymin, 1.8, 0., fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+
+ax1.arrow(xmin, ymin, 0., 1.3, fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+ax1.xaxis.set_label_coords(0.05, 0.025)
+ax1.yaxis.set_label_coords(0.025, 0.05)
+
+ax1.xaxis.label.set_fontsize(15)
+ax1.yaxis.label.set_fontsize(15)
+
+fig.savefig('../../figures/mdamb231SubpopNormalized.png', dpi = 500,  bbox_inches='tight')

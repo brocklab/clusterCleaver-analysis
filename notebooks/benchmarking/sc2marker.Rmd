@@ -5,55 +5,63 @@ require(SeuratWrappers)
 ```
 
 ```{r}
-seu = readRDS('../../data/toSeurat/231jostnerProcessed.rds')
+seu231 = readRDS('../../data/toSeurat/231jostnerProcessed.rds')
+seu436 = readRDS('../../data/toSeurat/436jostnerProcessed.rds')
+
 ```
 
 ```{r}
-seu <- FindNeighbors(seu, dims = 1:10)
-seu <- FindClusters(seu, resolution = 0.05)
+seu231 <- FindNeighbors(seu231, dims = 1:10)
+seu231 <- FindClusters(seu231, resolution = 0.05)
+
+seu436 <- FindNeighbors(seu436, dims = 1:10)
+seu436 <- FindClusters(seu436, resolution = 0.05)
 ```
 
 ```{r}
-DimPlot(seu, reduction = "umap")
+DimPlot(seu231, reduction = "umap")
 ```
 
 ```{r}
-nk.markers <- Detect_single_marker(mca.spleen, id = "NK cell(Spleen)", category = "Flow", org = "Human")
+DimPlot(seu436, reduction = "umap")
+
 ```
 
 ```{r}
-plot_ridge(mca.spleen, id = "NK cell(Spleen)", genes = nk.markers[1:9,]$gene, ncol = 3, assay = "RNA", aggr.other = F)
 ```
 
 ```{r}
-markers231 = Detect_single_marker(seu, id = '1', category='Flow', org = 'Human', self.db = './sc2MarkerGenes.csv')
+markers231 = Detect_single_marker(seu231, id = '1', category='Flow', org = 'Human', self.db = './sc2MarkerGenes.csv')
 head(markers231, 10)
+
+markers231$rankingc2Marker = seq(1, dim(markers231)[1])
+write.csv(markers231, '../../data/toSeurat/231sc2Marker.csv')
 ```
 
 ```{r}
-subset(markers231, gene == 'SPINT2')
+markers436 = Detect_single_marker(seu436, id = '1', category='Flow', org = 'Human', self.db = './sc2MarkerGenes.csv' )
+head(markers436, 10)
+
+markers436$rankingsc2Marker = seq(1, dim(markers436)[1])
+write.csv(markers436, '../../data/toSeurat/436sc2Marker.csv')
 ```
 
 ```{r}
-seu <- RunALRA(seu)
+markersEMD = read.csv('../../data/optimalGenes/allEMDGenesNewOld.csv', row.names = 1)
+markersEMD231 = subset(markersEMD, cellLine == 'mdamb231')
+markersEMD436 = subset(markersEMD, cellLine == 'mdamb436')
+
+rownames(markersEMD231) = NULL
+rownames(markersEMD436) = NULL
+
+markersEMD231$rankingEMD = seq(1, dim(markersEMD231)[1])
+markersEMD436$rankingEMD = seq(1, dim(markersEMD436)[1])
+
+colnames(markersEMD231)[2] = 'gene'
+colnames(markersEMD436)[2] = 'gene'
 ```
 
 ```{r}
-seu <- NormalizeData(seu, assay = "RNA")
-
-DefaultAssay(seu) <- "alra"
-FeaturePlot(seu, 'ESAM')
-
-DefaultAssay(seu) <- "RNA"
-FeaturePlot(seu, 'ESAM')
-```
-
-```{r}
-DefaultAssay(seu) <- "alra"
-assayData = GetAssayData(seu, slot = 'counts', assy = 'alra')
-
-write.table(as.matrix(assayData), './231CountsAlra.csv',
-            sep = ',', row.names = T, col.names = T, quote = F)
-
+allRankings = 
 
 ```
