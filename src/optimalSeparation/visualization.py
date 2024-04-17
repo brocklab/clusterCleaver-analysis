@@ -98,7 +98,7 @@ def plotModifiedHists(x0, x1, gene = 'gene'):
             # jitter = 0.45
             jitter = True).set(
         xlabel = f'{gene} Expression'
-    )   
+    )  
 def plotParetoOptimal(optimalGenes, paretoOptimalGenes, nGenes = 1, metric = 'auc'):
     if nGenes not in [1, 2]:
         print('Number of genes must be one or two for plotting')
