@@ -28,12 +28,12 @@ surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
 allEMDGenes, allEMDGenesNo0 = {}, {}
 cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38', 'mdamb436']
-cellLines = ['mdamb231']
+cellLines = ['mdamb436']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
     adata = adatas[cellLine]
 
-    emdGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], modifier = None)
+    emdGenes = searchOptimal.searchExpressionDist1D(adata, surfaceGenes['gene'], modifier = None)
 
     emdGenes.columns = ['genes', 'scoresOld', 'cluster']
     # emdGenes['cellLine'] = cellLine
@@ -41,7 +41,7 @@ for cellLine in cellLines:
     allEMDGenes[cellLine] = emdGenes
 
 
-    emdGenesNew = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], modifier = 'remove0')
+    emdGenesNew = searchOptimal.searchExpressionDist1D(adata, surfaceGenes['gene'], modifier = 'remove0')
 
     emdGenesNew.columns = ['genes', 'scoresNew', 'cluster']
     # emdGenesNew['cellLine'] = cellLine
@@ -57,7 +57,7 @@ dfEMDGenesAll.to_csv('../../data/optimalGenes/allEMDGenesNewOld.csv')
 # %%
 dfEMDGenesAll.sort_values(by = 'scoresNew', ascending=False)
 # %%
-visualization.plotHists(adatas['mdamb231'], gene = 'TSPAN8')
+visualization.plotHists(adatas['mdamb231'], gene = 'ESAM')
 # %%
 cellLine = 'mdamb231'
 dfEMDGenes = dfEMDGenesAll.loc[dfEMDGenesAll['cellLine'] == cellLine, :]

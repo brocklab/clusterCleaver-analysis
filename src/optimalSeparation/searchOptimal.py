@@ -178,71 +178,27 @@ def sliced_wasserstein(X, Y, num_proj = 1000):
         ests.append(wasserstein_distance(X0_proj[:, i], X1_proj[:, i]))
     return np.mean(ests)
 
-def vectorizedSearchSorted(a, b):
+def searchExpressionDist1D(
+                            adata, 
+                            surfaceGenes,
+                            modifier = 'remove0',
+                            metric = 'EMD', 
+                            label = 'leiden',
+                            minCounts = 100,
+                            scale = False,                           
+                            maxCombos = 10000, 
+                            ):
     """
-    A vectorized implementation of the numpy function `searchsorted`.
-    This is a columnwise implementation
-    """
-    m,n = a.shape
-    max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
-    r = max_num*np.arange(a.shape[1])[None,:]
-    p = np.searchsorted((a+r).ravel(order = 'F'), (b+r).ravel(order = 'F'), 'right').reshape(-1, n, order = 'F')
-    res = p - m*(np.arange(n))
-    return res
-    # z = res
-    # print(z)
-
-def vectorizedWasserstein(u_values, v_values):
-    """
-    Computes the wasserstein distance for two values. This is based heavily
-    on the scipy code, however it does not have weights. 
-
-    Note: Wasserstein distances are currently only evaluated over columns, there is no axis value
-
-    Inputs:
-    u_values, v_values: Matrices to be computed
-
-    Outputs:
-    distance: Computed columnwise distance
-    """
-    u_sorter = np.argsort(u_values, axis = 0)
-    v_sorter = np.argsort(v_values, axis = 0)
-
-    all_values = np.concatenate((u_values, v_values), axis = 0)
-    all_values.sort(kind='mergesort', axis = 0)
-
-    # Compute the differences between pairs of successive values of u and v.
-    deltas = np.diff(all_values, axis = 0)
-    # Get the respective positions of the values of u and v among the values of
-    # both distributions.
-
-    u_values.sort(axis = 0)
-    v_values.sort(axis = 0)
-
-    u_cdf_indices = vectorizedSearchSorted(u_values, all_values[:-1])
-    v_cdf_indices = vectorizedSearchSorted(v_values, all_values[:-1])
-
-    # Calculate the CDFs of u and v using their weights, if specified.
-    u_cdf = u_cdf_indices / u_values.shape[0]
-
-    v_cdf = v_cdf_indices / v_values.shape[0]
-
-
-    wd = np.sum(np.multiply(np.abs(u_cdf - v_cdf), deltas), axis = 0)
-
-    return wd
-
-def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, modifier = 'remove0', label = 'leiden', nGenes = 1, nTopGenes = 75, maxCombos = 10000, topGenes = [], minCounts = 100):
-    """
-    Computes the wasserstein (earth mover's distance) metric on gene expression data
+    Computes a statistical distance metric on gene expression data.
 
     Inputs:
         - adata: Anndata object with .obs consisting of numeric leiden cluster column
-        - surfaceGenes: List of surface genes to compare
+        - surfaceGenes: List of surface genes to compare, must also be in adata.var.index
         - modifier: Will remove 0s for improved EMD score, else run on unmodified gene expression
         - label: Column name in .obs containing label identities
         - nGenes: Number of genes to search through
         - minCounts: Number of counts sufficient for gene to pass when using modifier "remove0"
+        - maxCombos: Maximum number of combinations of genes to search for. Becomes relevant with larger numbers. 
     Outputs:
         - dfScores: Modified surface genes dataframe with a new separation score    
     """
@@ -251,41 +207,31 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, mod
         'bhat': bhattacharyyaHist
     }
     
+    # Validate input data
+    nGenes = 1
     assert modifier in ['remove0', 'no0', None], 'Modifier must be "remove0" or None'
-    if modifier == 'remove0':
-        assert nGenes == 1, 'Number of genes must be 1 to remove low expression values'
     if issparse(adata.X):
         adata.X = adata.X.toarray()
     scGenes = np.array(adata.var.index)
 
-    if nGenes > 1 and len(topGenes) == 0:
-        dfScores1 = searchExpressionDist(adata, surfaceGenes, label, nGenes = 1, maxCombos = maxCombos, nCombos = 50)
-        clusters = dfScores1['cluster'].unique()
-        assert len(clusters) == 2
-        genes1 = dfScores1.loc[dfScores1['cluster'] == clusters[0], 'gene1'][0:nTopGenes]
-        genes2 = dfScores1.loc[dfScores1['cluster'] == clusters[1], 'gene1'][0:nTopGenes]
-        surfaceCombos = list(itertools.product(genes1, genes2))
-
-    elif len(topGenes) > 0:
-        surfaceGenes = topGenes
-        availableGenes = [gene for gene in surfaceGenes if gene in scGenes]
-        surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
-        
-
-
     availableGenes = [gene for gene in surfaceGenes if gene in scGenes]
-    surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
+    assert len(availableGenes) > 0, 'No surface genes match genes in adata.var.index, check both inputs'
 
+    surfaceCombos = list(itertools.combinations(availableGenes, nGenes))
 
     if len(surfaceCombos) > maxCombos:
         warnings.warn('The number of combos generated is beyond the set maximum number of combos. Was this intentional?')
     print(f'Searching for {len(surfaceCombos)} combinations of {nGenes} gene(s)')
+
     comboScores = []
     expressedClusters = []
     adata.obs[label] = adata.obs[label].astype("string")
 
-    is0 = np.array(adata.obs[label] == '0').astype(bool)
-    is1 = np.array(adata.obs[label] == '1').astype(bool)
+    clusterLabels = list(adata.obs[label].unique())
+    assert len(clusterLabels) == 2, 'Number of unique labels in adata.obs[label] must be 2'
+
+    is0 = np.array(adata.obs[label] == clusterLabels[0]).astype(bool)
+    is1 = np.array(adata.obs[label] == clusterLabels[1]).astype(bool)
     surfaceCombosWrite = []
     for combo in tqdm(surfaceCombos):
         surfaceIdx = np.where(adata.var.index.isin(combo))[0]
@@ -322,22 +268,10 @@ def searchExpressionDist(adata, surfaceGenes, metric = 'EMD', scale = False, mod
             comboScores.append(dist)
             expressedClusters.append(cluster)
             surfaceCombosWrite.append(combo)
-        elif nGenes > 1:
-            dist = sliced_wasserstein(X0, X1, num_proj = 50)
-            comboScores.append(dist)
-            expressedClusters.append(cluster)
-            surfaceCombosWrite.append(combo)
-
-            comboScores.append(dist)
-            expressedClusters.append(cluster)
 
     
-    if nGenes == 1:   
-        dfScores = pd.DataFrame({'genes': np.array(surfaceCombosWrite).ravel(), 'scores': comboScores, 'cluster': expressedClusters})
-    else:
-        geneDict = {f'gene{num+1}': np.array(surfaceCombosWrite)[:, num] for num in range(0, nGenes)}
-        geneDict['scores'] = comboScores
-        dfScores = pd.DataFrame(geneDict)
+    dfScores = pd.DataFrame({'genes': np.array(surfaceCombosWrite).ravel(), 'scores': comboScores, 'cluster': expressedClusters})
+
 
     dfScores['genes'] = dfScores['genes'].astype('string')
     return dfScores.sort_values(by = 'scores', ascending = False)
@@ -438,14 +372,6 @@ def bhattacharyyaHist(p, q):
     full = np.concatenate([p, q])
     maxFull = np.max(full)
     minFull = np.min(full)
-    # Calculate number of bins using Freedman-Diaconis rule
-    # If IQR is 0, use sturges rule
-    # Could use other rules to slightly improve score accuracy
-    fdB = freedmanDiaconis(p)
-    if fdB > 0:
-        nBins = int(np.ceil((maxFull - minFull)/fdB))
-    else:
-        nBins = sturgesRule(p)
     # Calculate and normalize counts
     histRange = (minFull, maxFull)
     hist1, _ = np.histogram(p, bins = 'auto', range = histRange)
