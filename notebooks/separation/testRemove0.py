@@ -28,7 +28,7 @@ surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
 # %%
 allEMDGenes, allEMDGenesNo0 = {}, {}
 cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38', 'mdamb436']
-cellLines = ['mdamb436']
+cellLines = ['bt474']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
     adata = adatas[cellLine]
@@ -57,7 +57,8 @@ dfEMDGenesAll.to_csv('../../data/optimalGenes/allEMDGenesNewOld.csv')
 # %%
 dfEMDGenesAll.sort_values(by = 'scoresNew', ascending=False)
 # %%
-visualization.plotHists(adatas['mdamb231'], gene = 'ESAM')
+visualization.plotHists(adatas['bt474'], gene = 'TNFSF10')
+sc.pl.umap(adatas['bt474'], color = ['leiden', 'TNFSF10'])
 # %%
 cellLine = 'mdamb231'
 dfEMDGenes = dfEMDGenesAll.loc[dfEMDGenesAll['cellLine'] == cellLine, :]

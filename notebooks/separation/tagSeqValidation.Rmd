@@ -1,0 +1,163 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(ggrepel)
+
+```
+
+```{r Get count matrix}
+cts = read.csv('../../data/tagSeqOuts/star_salmon/salmon.merged.gene_counts_length_scaled.tsv', sep = '\t', row.names = 1)
+cts = cts[,2:ncol(cts)]
+cts = round(cts)
+
+colKeep436 = c("G1.MB435BST2lo",  "G2.MB435BST2lo",  "G3.MB435BST2lo",  "H1.MB435BST2hi",  "H2.MB435BST2hi",  "H3.MB435BST2hi")
+colKeep231 = c("C1.MB231ESAMneg", "C2.MB231ESAMneg",  "C3.MB231ESAMneg", "D1.MB231ESAMpos", "D2.MB231ESAMpos", "D3.MB231ESAMpos")
+colKeep = c(colKeep436, colKeep231)
+cts = cts[,colKeep]
+```
+
+```{r Generate DE Genes}
+conditions = c('low', 'low', 'low', 'high', 'high', 'high')
+types = rep('paired-end', 6)
+coldata231 = data.frame(condition = conditions, type = types)
+row.names(coldata231) = colnames(cts231)
+
+coldata436 = data.frame(condition = conditions, type = types)
+row.names(coldata436) = colnames(cts436)
+
+dds231 <- DESeqDataSetFromMatrix(countData = cts231,
+                              colData = coldata231,
+                              design = ~ condition)
+dds231 <- DESeq(dds231)
+res231 <- results(dds231)
+
+dds436 <- DESeqDataSetFromMatrix(countData = cts436,
+                              colData = coldata436,
+                              design = ~ condition)
+dds436 <- DESeq(dds436)
+res436 <- results(dds436)
+```
+
+```{r}
+nTopGenes = 200
+nLower = dim(dfGenes436)[1]-nTopGenes-1
+topGenes436 = c(dfGenes436$names[1:nTopGenes], dfGenes436$names[nLower:dim(dfGenes436)[1]])
+
+norm436 = data.frame(counts(dds436, normalized = TRUE))
+top436 = norm436[topGenes436,]
+# top436 =cts436[c('BST2', 'ESAM'),]
+top436 = top436[complete.cases(top436),]
+top436 = top436[rowSums(top436) > 0,]
+
+labelCols = data.frame(group = as.factor(c(rep('BST2 Low', 3), rep('BST2 High', 3))))
+
+colnames(labelCols) = 'Subpopulation'
+rownames(labelCols) = colnames(top436)
+
+matColors = list(Subpopulation = c('BST2 High' = '#44B1BB', 'BST2 Low' = '#BB4E44'))
+# matColors = list(Subpopulation = c('1' = '#44B1BB', '2' = '#BB4E44'))
+p = pheatmap(top436, 
+         scale = 'row',
+         treeheight_row = 0, 
+#         treeheight_col = 50, 
+         annotation_col = labelCols,
+         annotation_legend = TRUE, 
+          annotation_colors = matColors,
+          annotation_names_col = FALSE,
+          drop_levels = TRUE,
+         legend = FALSE,
+         labels_row = rep('',dim(top436)[1]),
+         #labels_col = rep('',dim(top436)[2]),
+         angle_col = 0
+)
+ggsave('../../figures/final/436TagSeqHeatmap.png', 
+       p, 
+       dpi = 900,
+       height = 4,
+       width = 7)
+```
+
+```{r}
+norm231 = data.frame(counts(dds231, normalized = TRUE))
+top231 = norm231[topGenes231,]
+# top231 =cts231[c('BST2', 'ESAM'),]
+top231 = top231[complete.cases(top231),]
+top231 = top231[rowSums(top231) > 0,]
+
+labelCols = data.frame(group = as.factor(c(rep('BST2 Low', 3), rep('BST2 High', 3))))
+
+colnames(labelCols) = 'Subpopulation'
+rownames(labelCols) = colnames(top231)
+
+labelCols = data.frame(group = as.factor(c(rep('ESAM Low', 3), rep('ESAM High', 3))))
+
+colnames(labelCols) = 'Subpopulation'
+rownames(labelCols) = colnames(top231)
+
+matColors = list(Subpopulation = c('ESAM High' = '#44B1BB', 'ESAM Low' = '#BB4E44'))
+# matColors = list(Subpopulation = c('1' = '#44B1BB', '2' = '#BB4E44'))
+p = pheatmap(top231, 
+         scale = 'row',
+         treeheight_row = 0, 
+#         treeheight_col = 50, 
+         annotation_col = labelCols,
+         annotation_legend = TRUE, 
+          annotation_colors = matColors,
+          annotation_names_col = FALSE,
+          drop_levels = TRUE,
+         legend = FALSE,
+         labels_row = rep('',dim(top231)[1]),
+        labels_col = rep('',dim(top231)[2]),
+         angle_col = 0
+)
+ggsave('../../figures/final/231TagSeqHeatmap.png', 
+       p, 
+       dpi = 900,
+       height = 4,
+       width = 7)
+```
+
+```{r}
+# plot_DE_volcano_genelist <- function(res, title, padj_threshold = 0.05, abs_l2fc_min = 1, colrs=c('red','forestgreen'))
+padj = 0.05
+l2fc = 1
+res = data.frame(res231)
+cols = c('darkred', 'forestgreen')
+  plotVolc <- res %>% select(log2FoldChange, pvalue, padj) %>% rownames_to_column('gene')
+  plotVolc = plotVolc[complete.cases(plotVolc),]
+  sigDown = plotVolc$log2FoldChange < -l2fc & plotVolc$padj < padj
+  sigUp   = plotVolc$log2FoldChange >  l2fc & plotVolc$padj < padj
+  plotVolc$color = 'NA'
+  plotVolc$color[sigDown] = 'down'
+  plotVolc$color[sigUp] = 'up'
+  cols = c('NA' = 'gray', 'down' = cols[1], 'up' = cols[2])
+  
+xticks = round(seq(min(plotVolc$log2FoldChange), max(plotVolc$log2FoldChange)))
+ggplot(plotVolc, aes(x = log2FoldChange, y = -log10(padj)))+
+  geom_point(aes(color = factor(color)))+
+  scale_color_manual(values = cols)+
+  geom_vline(xintercept = c(-l2fc,l2fc), linewidth=0.1, linetype='dashed') +
+  geom_hline(yintercept = c(-log10(padj)), linewidth=0.1, linetype='dashed') +
+  scale_x_continuous(breaks = xticks) + 
+  theme_few()+
+  theme(legend.position = "none")
+  
+  #  ggplot(plot_volc, aes(x=log2FoldChange, y=-log10(padj))) +
+  #   geom_point(alpha=0.5, color='grey') +
+  #   geom_point(data=plot_volc %>% filter(log2FoldChange > 0 & log2FoldChange < l2fc),                color=cols[2], alpha=0.2, size=1) +
+  #   geom_point(data=plot_volc %>% filter(log2FoldChange > 0 & log2FoldChange > l2fc & padj < padj),  color=cols[2], alpha=0.9        ) +
+  #   geom_point(data=plot_volc %>% filter(log2FoldChange < 0 & log2FoldChange > -l2fc),               color=cols[1], alpha=0.2, size=1) +
+  #   geom_point(data=plot_volc %>% filter(log2FoldChange < 0 & log2FoldChange < -l2fc & padj < padj), color=cols[1], alpha=0.9        ) +
+  #   # geom_text_repel(data=plot_volc %>% filter(abs(log2FoldChange) > abs_l2fc_min & padj < padj_threshold), bg.color = "white", bg.r = 0.1, box.padding = 0.4, max.overlaps = Inf, aes(label=gene), size=3) +
+  #   theme_few() +
+  #   geom_vline(xintercept = c(-l2fc,l2fc), linewidth=0.1, linetype='dashed') +
+  #   geom_hline(yintercept = c(-log10(padj)), linewidth=0.1, linetype='dashed') +
+  # ggtitle('test')
+
+plot_volc = plot_DE_volcano_genelist(data.frame(res231), title = 'test')
+```
