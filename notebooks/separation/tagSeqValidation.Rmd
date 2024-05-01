@@ -34,13 +34,13 @@ dds231 <- DESeqDataSetFromMatrix(countData = cts231,
                               colData = coldata231,
                               design = ~ condition)
 dds231 <- DESeq(dds231)
-res231 <- results(dds231)
+res231 <- results(dds231, contrast = c('condition', 'high', 'low'))
 
 dds436 <- DESeqDataSetFromMatrix(countData = cts436,
                               colData = coldata436,
                               design = ~ condition)
 dds436 <- DESeq(dds436)
-res436 <- results(dds436)
+res436 <- results(dds436, contrast = c('condition', 'high', 'low'))
 ```
 
 ```{r}
@@ -123,41 +123,77 @@ ggsave('../../figures/final/231TagSeqHeatmap.png',
 ```
 
 ```{r}
+
+emdGenes = read.csv('../../data/optimalGenes/allEMDGenesNewOld.csv', row.names = 1)
+emdGenes436 = emdGenes[emdGenes$cellLine == 'mdamb436',]
+emdGenes231 = emdGenes[emdGenes$cellLine == 'mdamb231',]
+
+topEMD436 = emdGenes436$genes[0:10]
+topEMD231 = emdGenes231$genes[0:10]
+head(emdGenes436)
+```
+
+```{r}
 # plot_DE_volcano_genelist <- function(res, title, padj_threshold = 0.05, abs_l2fc_min = 1, colrs=c('red','forestgreen'))
 padj = 0.05
 l2fc = 1
 res = data.frame(res231)
-cols = c('darkred', 'forestgreen')
-  plotVolc <- res %>% select(log2FoldChange, pvalue, padj) %>% rownames_to_column('gene')
-  plotVolc = plotVolc[complete.cases(plotVolc),]
-  sigDown = plotVolc$log2FoldChange < -l2fc & plotVolc$padj < padj
-  sigUp   = plotVolc$log2FoldChange >  l2fc & plotVolc$padj < padj
-  plotVolc$color = 'NA'
-  plotVolc$color[sigDown] = 'down'
-  plotVolc$color[sigUp] = 'up'
-  cols = c('NA' = 'gray', 'down' = cols[1], 'up' = cols[2])
-  
+cols = c('#BB4E44', '#44B1BB')
+plotVolc <- res %>% select(log2FoldChange, pvalue, padj) %>% rownames_to_column('gene')
+plotVolc = plotVolc[complete.cases(plotVolc),]
+sigDown = plotVolc$log2FoldChange < -l2fc & plotVolc$padj < padj
+sigUp   = plotVolc$log2FoldChange >  l2fc & plotVolc$padj < padj
+plotVolc$color = 'NA'
+plotVolc$color[sigDown] = 'down'
+plotVolc$color[sigUp] = 'up'
+cols = c('NA' = 'gray', 'down' = cols[1], 'up' = cols[2])
+plotVolc$geneLabel = ''
+plotVolc$geneLabel[plotVolc$gene %in% topEMD231] = plotVolc$gene[plotVolc$gene %in% topEMD231]
+
 xticks = round(seq(min(plotVolc$log2FoldChange), max(plotVolc$log2FoldChange)))
-ggplot(plotVolc, aes(x = log2FoldChange, y = -log10(padj)))+
+p = ggplot(plotVolc, aes(x = log2FoldChange, y = -log10(padj), label = geneLabel))+
   geom_point(aes(color = factor(color)))+
   scale_color_manual(values = cols)+
   geom_vline(xintercept = c(-l2fc,l2fc), linewidth=0.1, linetype='dashed') +
   geom_hline(yintercept = c(-log10(padj)), linewidth=0.1, linetype='dashed') +
   scale_x_continuous(breaks = xticks) + 
   theme_few()+
+  geom_text_repel(max.overlaps = Inf, min.segment.length = 0, force = 20)+
+  labs(title = 'MDAMB231 DE Genes') + 
   theme(legend.position = "none")
-  
-  #  ggplot(plot_volc, aes(x=log2FoldChange, y=-log10(padj))) +
-  #   geom_point(alpha=0.5, color='grey') +
-  #   geom_point(data=plot_volc %>% filter(log2FoldChange > 0 & log2FoldChange < l2fc),                color=cols[2], alpha=0.2, size=1) +
-  #   geom_point(data=plot_volc %>% filter(log2FoldChange > 0 & log2FoldChange > l2fc & padj < padj),  color=cols[2], alpha=0.9        ) +
-  #   geom_point(data=plot_volc %>% filter(log2FoldChange < 0 & log2FoldChange > -l2fc),               color=cols[1], alpha=0.2, size=1) +
-  #   geom_point(data=plot_volc %>% filter(log2FoldChange < 0 & log2FoldChange < -l2fc & padj < padj), color=cols[1], alpha=0.9        ) +
-  #   # geom_text_repel(data=plot_volc %>% filter(abs(log2FoldChange) > abs_l2fc_min & padj < padj_threshold), bg.color = "white", bg.r = 0.1, box.padding = 0.4, max.overlaps = Inf, aes(label=gene), size=3) +
-  #   theme_few() +
-  #   geom_vline(xintercept = c(-l2fc,l2fc), linewidth=0.1, linetype='dashed') +
-  #   geom_hline(yintercept = c(-log10(padj)), linewidth=0.1, linetype='dashed') +
-  # ggtitle('test')
 
-plot_volc = plot_DE_volcano_genelist(data.frame(res231), title = 'test')
+ggsave('../../figures/final/231VolcanoPlot.png', p, dpi = 500)
+
+```
+
+```{r}
+padj = 0.05
+l2fc = 1
+res = data.frame(res436)
+cols = c('#BB4E44', '#44B1BB')
+plotVolc <- res %>% select(log2FoldChange, pvalue, padj) %>% rownames_to_column('gene')
+plotVolc = plotVolc[complete.cases(plotVolc),]
+sigDown = plotVolc$log2FoldChange < -l2fc & plotVolc$padj < padj
+sigUp   = plotVolc$log2FoldChange >  l2fc & plotVolc$padj < padj
+plotVolc$color = 'NA'
+plotVolc$color[sigDown] = 'down'
+plotVolc$color[sigUp] = 'up'
+cols = c('NA' = 'gray', 'down' = cols[1], 'up' = cols[2])
+plotVolc$geneLabel = ''
+plotVolc$geneLabel[plotVolc$gene %in% topEMD436] = plotVolc$gene[plotVolc$gene %in% topEMD436]
+
+xticks = round(seq(min(plotVolc$log2FoldChange), max(plotVolc$log2FoldChange)))
+ggplot(plotVolc, aes(x = log2FoldChange, y = -log10(padj), label = geneLabel))+
+  geom_point(aes(color = factor(color)))+
+  scale_color_manual(values = cols)+
+  geom_vline(xintercept = c(-l2fc,l2fc), linewidth=0.1, linetype='dashed') +
+  geom_hline(yintercept = c(-log10(padj)), linewidth=0.1, linetype='dashed') +
+  scale_x_continuous(breaks = xticks) + 
+  theme_few()+
+  geom_text_repel(max.overlaps = Inf, min.segment.length = 0, force = 20)+
+  labs(title = 'MDAMB436 DE Genes') + 
+  theme(legend.position = "none")
+
+ggsave('../../figures/final/436VolcanoPlot.png', p, dpi = 500)
+
 ```

@@ -9,11 +9,67 @@ import seaborn as sns
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
 # %%
-colors = ['#BB4E44', '#44B1BB', '#76BB44', '#8944BB']
-sns.set_palette(sns.color_palette(colors))
 # %%
 adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 # %%
+adataFull = adataFull[adataFull.obs['scDblFinder_class'] == 'singlet']
+sc.pp.highly_variable_genes(adataFull, min_mean=0.0125, max_mean=3, min_disp=0.5)
+compute_dimensionality_reductions(adataFull)
+sc.pl.umap(adataFull, color = 'sample')
+# %%
+sns.reset_defaults()
+
+cellDict = {
+    'bt474': 'BT474',
+    'hcc38': 'HCC38',
+    'hs578t': 'HS578T',
+    'mdamb231': 'MDAMB231',
+    'mdamb436': 'MDAMB436',
+    'mdamb453': 'MDAMB453'
+}
+
+fig, ax = plt.subplots(1, 1, figsize=(10,10))
+umapPts = adataFull.obsm['X_umap']
+for sample in adataFull.obs['sample'].unique():
+    inSample = adataFull.obs['sample'] == sample
+    x = umapPts[inSample,0]
+    y = umapPts[inSample, 1]
+
+    plt.scatter(x,y, s = 3, label = cellDict[sample])
+ax.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+ax.spines[["top", "right", 'left', 'bottom']].set_visible(False)
+ax.set_xticks([])
+ax.set_yticks([])
+xmin, xmax = ax.get_xlim() 
+ymin, ymax = ax.get_ylim()
+ax.set_xlabel('UMAP 1', loc = 'left', fontsize = 13)
+ax.set_ylabel('UMAP 2', loc = 'bottom', fontsize = 13)
+
+ax.arrow(xmin, ymin, 2, 0., fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+
+ax.arrow(xmin, ymin, 0., 2, fc='k', ec='k', lw = 1, 
+         head_width=0.25, head_length=0.25, overhang = 0.3, 
+         length_includes_head= False, clip_on = False) 
+
+ax.xaxis.set_label_coords(0.05, 0.025)
+ax.yaxis.set_label_coords(0.025, 0.05)
+
+lgnd = ax.legend(prop=dict(size=18), bbox_to_anchor=(1, 0.5),
+                         loc='center left', borderaxespad=0.)
+
+for handle in lgnd.legend_handles:
+    handle.set_sizes([100])
+lgnd.get_frame().set_linewidth(0.0)
+
+fig.savefig('../../figures/final/umapConcat.png', dpi = 500, bbox_inches = 'tight')
+plt.show()
+# %%
+colors = ['#BB4E44', '#44B1BB', '#76BB44', '#8944BB', '#E87941', '#FE64A3']
+sns.set_palette(sns.color_palette(colors))
+
 samples = adataFull.obs['sample'].unique()
 adatas = {}
 for sample in samples:
@@ -100,6 +156,6 @@ for i, (cellLine, adata) in enumerate(adatas.items()):
 
         ax.xaxis.label.set_fontsize(10)
         ax.yaxis.label.set_fontsize(10)
-fig.savefig('../../figures/umapAllLinesClustered.png', dpi = 500)
+fig.savefig('../../figures/final/umapAllLinesClustered.png', dpi = 500)
 
 # %%
