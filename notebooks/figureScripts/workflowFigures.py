@@ -84,7 +84,7 @@ plt.plot(x2,y2)
 plt.fill_between(x2, y2, alpha = 0.5)
 plt.xticks([])
 plt.yticks([])
-plt.xlabel('Gene Expression')
+plt.xlabel('Gene Expression', size = 20)
 
 fig.savefig('../../figures/exampleHistogram.png', dpi = 500)
 # %%

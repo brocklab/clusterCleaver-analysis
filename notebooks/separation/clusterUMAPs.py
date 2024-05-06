@@ -13,6 +13,8 @@ from optimalSeparation import searchOptimal, dataLoading, visualization
 adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
 # %%
 adataFull = adataFull[adataFull.obs['scDblFinder_class'] == 'singlet']
+adataFull = adataFull[adataFull.obs['sample'] != 'hcc38']
+
 sc.pp.highly_variable_genes(adataFull, min_mean=0.0125, max_mean=3, min_disp=0.5)
 compute_dimensionality_reductions(adataFull)
 sc.pl.umap(adataFull, color = 'sample')
@@ -20,17 +22,17 @@ sc.pl.umap(adataFull, color = 'sample')
 sns.reset_defaults()
 
 cellDict = {
-    'bt474': 'BT474',
-    'hcc38': 'HCC38',
-    'hs578t': 'HS578T',
-    'mdamb231': 'MDAMB231',
-    'mdamb436': 'MDAMB436',
-    'mdamb453': 'MDAMB453'
+    # 'bt474': 'BT474',
+    # 'hcc38': 'HCC38',
+    # 'hs578t': 'Hs578T',
+    'mdamb231': 'MDA-MB-231',
+    'mdamb436': 'MDA-MB-436',
+    # 'mdamb453': 'MDA-MB-453'
 }
 
 fig, ax = plt.subplots(1, 1, figsize=(10,10))
 umapPts = adataFull.obsm['X_umap']
-for sample in adataFull.obs['sample'].unique():
+for sample in cellDict.keys():
     inSample = adataFull.obs['sample'] == sample
     x = umapPts[inSample,0]
     y = umapPts[inSample, 1]
@@ -105,12 +107,11 @@ cellLineNames = {'bt474': 'BT474',
                  'mdamb231': 'MDA-MB-231',
                  'mdamb453': 'MDA-MB-453',
                  'hcc38'   : 'HCC38',
-                 'hs578t': 'Hs 578T',
+                 'hs578t': 'Hs578T',
                  'mdamb436': 'MDA-MB-436'}
 fig, axs = plt.subplots(3, 2, figsize = (7.5,10))
 axs = axs.ravel()
 for i, (cellLine, adata) in enumerate(adatas.items()):
-    print(cellLine)
     ax = axs[i]
     ax.spines[["top", "right", 'left', 'bottom']].set_visible(False)
 
@@ -156,6 +157,56 @@ for i, (cellLine, adata) in enumerate(adatas.items()):
 
         ax.xaxis.label.set_fontsize(10)
         ax.yaxis.label.set_fontsize(10)
+
+fig.delaxes(axs[-1])
+plt.show()
 fig.savefig('../../figures/final/umapAllLinesClustered.png', dpi = 500)
 
+# %% Get PCC
+leidens = []
+for cellLine, adata in adatas.items():
+    leidens.append(adatas[cellLine].obs['leiden'])
+    
+if 'leiden' not in adataFull.obs.columns:
+    adataFull.obs = adataFull.obs.join(pd.concat(leidens))
+    
+adataFull.obs['cellCluster'] = adataFull.obs['sample'].str[:]+'-'+adataFull.obs['leiden'].str[:]
+pcaVals = {}
+for cellCluster in adataFull.obs['cellCluster'].unique():
+    isCellClust = adataFull.obs['cellCluster'] == cellCluster
+    pcaVals[cellCluster] = adataFull.obsm['X_pca'][isCellClust,:].mean(axis = 0)
+    # pcaVals[cellCluster] = np.array(adataFull.X[isCellClust,:].mean(axis = 0))[0]
+
+sc.pl.pca(adataFull, color = 'cellCluster')
+
+pcaVals = pd.DataFrame(pcaVals)
+pcaCorr = pcaVals.corr('pearson')
+
+import seaborn as sns
+sns.heatmap(pcaCorr, annot = True, fmt = '.3').set_title('Pearson Correlation')
+plt.show()
 # %%
+sc.pl.pca(adataFull, color = 'cellCluster', title = 'cellLine - cluster #')
+# %%
+from scipy.spatial.distance import cosine
+from scipy.stats import pearsonr
+for sample, adata in adatas.items():
+    is0 = adata.obs['leiden'] == '0'
+    is1 = adata.obs['leiden'] == '1'
+
+    v0 = adata.obsm['X_pca'][is0,:].mean(axis = 0)
+    v1 = adata.obsm['X_pca'][is1,:].mean(axis = 0)
+
+    # v0 = np.array(adata.X[is0,:].mean(axis = 0))[0]
+    # v1 = np.array(adata.X[is1,:].mean(axis = 0))[0]
+    # corr = pearsonr(v0, v1).statistic
+    corr = cosine(v0, v1)
+    print(f'{sample} correlation: {corr:0.2f}')
+
+    plt.figure()
+    plt.scatter(v0, v1)
+
+    plt.figure()
+    sc.pl.pca(adata, color = 'leiden')
+    
+    plt.show()

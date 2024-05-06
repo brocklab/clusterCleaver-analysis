@@ -19,6 +19,12 @@ colKeep436 = c("G1.MB435BST2lo",  "G2.MB435BST2lo",  "G3.MB435BST2lo",  "H1.MB43
 colKeep231 = c("C1.MB231ESAMneg", "C2.MB231ESAMneg",  "C3.MB231ESAMneg", "D1.MB231ESAMpos", "D2.MB231ESAMpos", "D3.MB231ESAMpos")
 colKeep = c(colKeep436, colKeep231)
 cts = cts[,colKeep]
+
+cts231 = cts[,colKeep231]
+cts436 = cts[,colKeep436]
+
+dfGenes436 = read.csv('../../data/topGenes436.csv', row.names = 1)
+dfGenes231 = read.csv('../../data/topGenes231.csv', row.names = 1)
 ```
 
 ```{r Generate DE Genes}
@@ -45,8 +51,10 @@ res436 <- results(dds436, contrast = c('condition', 'high', 'low'))
 
 ```{r}
 nTopGenes = 200
-nLower = dim(dfGenes436)[1]-nTopGenes-1
-topGenes436 = c(dfGenes436$names[1:nTopGenes], dfGenes436$names[nLower:dim(dfGenes436)[1]])
+nLower = dim(dfGenes436)[1]-nTopGenes+1
+highGenes = dfGenes436$names[1:nTopGenes]
+lowGenes = dfGenes436$names[nLower:dim(dfGenes436)[1]]
+topGenes436 = c(highGenes, lowGenes)
 
 norm436 = data.frame(counts(dds436, normalized = TRUE))
 top436 = norm436[topGenes436,]
@@ -54,72 +62,110 @@ top436 = norm436[topGenes436,]
 top436 = top436[complete.cases(top436),]
 top436 = top436[rowSums(top436) > 0,]
 
-labelCols = data.frame(group = as.factor(c(rep('BST2 Low', 3), rep('BST2 High', 3))))
+# Reverse order of samples such that it's BST2High and then low 
+# top436 = rev(top436)
 
-colnames(labelCols) = 'Subpopulation'
+acceptedSingleCell = dfGenes436[dfGenes436$names %in% row.names(top436),]
+
+nLow = sum(acceptedSingleCell$score > 0)
+nHigh = sum(acceptedSingleCell$score < 0)
+
+labelRows = data.frame(group = as.factor(c(rep('BST2 Low', nLow), rep('BST2 High', nHigh))))
+
+colnames(labelRows) = 'Subpopulation'
+rownames(labelRows) = rownames(top436)
+
+
+labelCols = data.frame(group = as.factor(c(rep('BST2 High', 3), rep('BST2 Low', 3))))
 rownames(labelCols) = colnames(top436)
 
 matColors = list(Subpopulation = c('BST2 High' = '#44B1BB', 'BST2 Low' = '#BB4E44'))
+
 # matColors = list(Subpopulation = c('1' = '#44B1BB', '2' = '#BB4E44'))
-p = pheatmap(top436, 
-         scale = 'row',
-         treeheight_row = 0, 
-#         treeheight_col = 50, 
-         annotation_col = labelCols,
-         annotation_legend = TRUE, 
-          annotation_colors = matColors,
-          annotation_names_col = FALSE,
-          drop_levels = TRUE,
-         legend = FALSE,
-         labels_row = rep('',dim(top436)[1]),
-         #labels_col = rep('',dim(top436)[2]),
-         angle_col = 0
+p = pheatmap(
+              top436, 
+              scale = 'row',
+              treeheight_row = 0, 
+              treeheight_col = 15,
+              # annotation_col = labelCols,
+              annotation_row = labelRows,
+              annotation_legend = FALSE, 
+              annotation_colors = matColors,
+              annotation_names_row = FALSE,
+              annotation_names_col = FALSE,
+              drop_levels = TRUE,
+              cluster_rows = FALSE,
+              # legend = FALSE,
+              labels_row = rep('',dim(top436)[1]),
+              labels_col = rep('',dim(top436)[2]),
+              angle_col = 0
 )
-ggsave('../../figures/final/436TagSeqHeatmap.png', 
-       p, 
+scaling = 2
+
+ggsave('../../figures/final/436TagSeqHeatmap.png',
+       p,
        dpi = 900,
-       height = 4,
-       width = 7)
+       height = 2.4*scaling,
+       width = 2.2*scaling)
 ```
 
 ```{r}
+nTopGenes = 200
+nLower = dim(dfGenes231)[1]-nTopGenes+1
+highGenes = dfGenes231$names[1:nTopGenes]
+lowGenes = dfGenes231$names[nLower:dim(dfGenes231)[1]]
+topGenes231 = c(highGenes, lowGenes)
+
 norm231 = data.frame(counts(dds231, normalized = TRUE))
 top231 = norm231[topGenes231,]
 # top231 =cts231[c('BST2', 'ESAM'),]
 top231 = top231[complete.cases(top231),]
 top231 = top231[rowSums(top231) > 0,]
 
-labelCols = data.frame(group = as.factor(c(rep('BST2 Low', 3), rep('BST2 High', 3))))
+acceptedSingleCell = dfGenes231[dfGenes231$names %in% row.names(top231),]
+# Reverse order of samples such that it's BST2High and then low 
+# top231 = rev(top231)
 
-colnames(labelCols) = 'Subpopulation'
-rownames(labelCols) = colnames(top231)
+nLow = sum(acceptedSingleCell$score > 0)
+nHigh = sum(acceptedSingleCell$score < 0)
 
-labelCols = data.frame(group = as.factor(c(rep('ESAM Low', 3), rep('ESAM High', 3))))
+labelRows = data.frame(group = as.factor(c(rep('ESAM Low', nLow), rep('ESAM High', nHigh))))
 
-colnames(labelCols) = 'Subpopulation'
+colnames(labelRows) = 'Subpopulation'
+rownames(labelRows) = rownames(top231)
+
+labelCols = data.frame(group = as.factor(c(rep('ESAM High', 3), rep('ESAM Low', 3))))
 rownames(labelCols) = colnames(top231)
 
 matColors = list(Subpopulation = c('ESAM High' = '#44B1BB', 'ESAM Low' = '#BB4E44'))
+
 # matColors = list(Subpopulation = c('1' = '#44B1BB', '2' = '#BB4E44'))
-p = pheatmap(top231, 
-         scale = 'row',
-         treeheight_row = 0, 
-#         treeheight_col = 50, 
-         annotation_col = labelCols,
-         annotation_legend = TRUE, 
-          annotation_colors = matColors,
-          annotation_names_col = FALSE,
-          drop_levels = TRUE,
-         legend = FALSE,
-         labels_row = rep('',dim(top231)[1]),
-        labels_col = rep('',dim(top231)[2]),
-         angle_col = 0
+p = pheatmap(
+              top231, 
+              scale = 'row',
+              treeheight_row = 0, 
+              treeheight_col = 15,
+              # annotation_col = labelCols,
+              annotation_row = labelRows,
+              annotation_legend = FALSE, 
+              annotation_colors = matColors,
+              annotation_names_row = FALSE,
+              annotation_names_col = FALSE,
+              drop_levels = TRUE,
+              cluster_rows = FALSE,
+              # legend = FALSE,
+              labels_row = rep('',dim(top231)[1]),
+              labels_col = rep('',dim(top231)[2]),
+              angle_col = 0
 )
-ggsave('../../figures/final/231TagSeqHeatmap.png', 
-       p, 
+scaling = 2
+
+ggsave('../../figures/final/231TagSeqHeatmap.png',
+       p,
        dpi = 900,
-       height = 4,
-       width = 7)
+       height = 2.4*scaling,
+       width = 2.2*scaling)
+
 ```
 
 ```{r}
@@ -131,6 +177,19 @@ emdGenes231 = emdGenes[emdGenes$cellLine == 'mdamb231',]
 topEMD436 = emdGenes436$genes[0:10]
 topEMD231 = emdGenes231$genes[0:10]
 head(emdGenes436)
+
+row.names(emdGenes436) = seq(1, dim(emdGenes436)[1])
+row.names(emdGenes231) = seq(1, dim(emdGenes231)[1])
+
+emdGenes436 = emdGenes436[,2:3]
+emdGenes231 = emdGenes231[,2:3]
+
+colnames(emdGenes436) = c('genes', 'score')
+colnames(emdGenes231) = c('genes', 'score')
+
+write.csv(emdGenes436, '../../data/emdGenesRankScore436.csv')
+write.csv(emdGenes231, '../../data/emdGenesRankScore231.csv')
+
 ```
 
 ```{r}
@@ -152,17 +211,17 @@ plotVolc$geneLabel[plotVolc$gene %in% topEMD231] = plotVolc$gene[plotVolc$gene %
 
 xticks = round(seq(min(plotVolc$log2FoldChange), max(plotVolc$log2FoldChange)))
 p = ggplot(plotVolc, aes(x = log2FoldChange, y = -log10(padj), label = geneLabel))+
-  geom_point(aes(color = factor(color)))+
+  geom_point(aes(color = factor(color)), size = 0.4)+
   scale_color_manual(values = cols)+
   geom_vline(xintercept = c(-l2fc,l2fc), linewidth=0.1, linetype='dashed') +
   geom_hline(yintercept = c(-log10(padj)), linewidth=0.1, linetype='dashed') +
   scale_x_continuous(breaks = xticks) + 
   theme_few()+
-  geom_text_repel(max.overlaps = Inf, min.segment.length = 0, force = 20)+
-  labs(title = 'MDAMB231 DE Genes') + 
-  theme(legend.position = "none")
-
-ggsave('../../figures/final/231VolcanoPlot.png', p, dpi = 500)
+  geom_text_repel(max.overlaps = Inf, max.iter = 10000, min.segment.length = 0, force = 200, size = 2, segment.size=.25, bg.color = 'white')+
+  labs(title = '') + 
+  theme(legend.position = "none", text = element_text(size = 10))
+print(p)
+ggsave('../../figures/final/231VolcanoPlot.png', p, dpi = 500, width = 3.3, height = 1.9)
 
 ```
 
@@ -183,17 +242,21 @@ plotVolc$geneLabel = ''
 plotVolc$geneLabel[plotVolc$gene %in% topEMD436] = plotVolc$gene[plotVolc$gene %in% topEMD436]
 
 xticks = round(seq(min(plotVolc$log2FoldChange), max(plotVolc$log2FoldChange)))
-ggplot(plotVolc, aes(x = log2FoldChange, y = -log10(padj), label = geneLabel))+
-  geom_point(aes(color = factor(color)))+
+p = ggplot(plotVolc, aes(x = log2FoldChange, y = -log10(padj), label = geneLabel))+
+  geom_point(aes(color = factor(color)), size = 0.4)+
   scale_color_manual(values = cols)+
   geom_vline(xintercept = c(-l2fc,l2fc), linewidth=0.1, linetype='dashed') +
   geom_hline(yintercept = c(-log10(padj)), linewidth=0.1, linetype='dashed') +
   scale_x_continuous(breaks = xticks) + 
   theme_few()+
-  geom_text_repel(max.overlaps = Inf, min.segment.length = 0, force = 20)+
-  labs(title = 'MDAMB436 DE Genes') + 
-  theme(legend.position = "none")
+  geom_text_repel(max.overlaps = Inf, max.iter = 10000, min.segment.length = 0, force = 200, size = 2, segment.size=.25, bg.color = 'white')+
+  labs(title = '') + 
+  theme(legend.position = "none", text = element_text(size = 10))
 
-ggsave('../../figures/final/436VolcanoPlot.png', p, dpi = 500)
+ggsave('../../figures/final/436VolcanoPlot.png',  p, dpi = 500, width = 3.3, height = 1.9)
+
+```
+
+```{r}
 
 ```
