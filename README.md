@@ -1,14 +1,12 @@
-# Optimal Separation 
+# Computational identification of surface markers for isolating distinct subpopulations from heterogeneous cancer cell populations
 
-This is a set of scripts meant for searching for optimal surface markers. Multiple public datasets have been downloaded for analysis. Additionally, we have collected single-cell data from <5 passage cell lines from ATCC. 
-
-## Setup
+This is a set of notebooks/scripts used to process single-cell data and find surface markers for the paper (biorxiv reference). We also released a package for this called `scDistRank` available on pypi at https://pypi.org/project/scDistRank/. 
+## Environment Setup
 
 To get started generate and activate the `conda` environment.
 
 > **Note**
 > must have one of `conda`, `mamba` or `micromamba`
-
 ```sh
 make env
 ```
@@ -26,9 +24,3 @@ Then it should be added to the `env.yml` and the `locked.yml` re-resolved with t
 ```sh
 make locked.yml
 ```
-
-Alternatively, for those using `vscode` there is a provided `devcontainer.json` which can be used with the repo.
-
-## Dag
-
-![dag](./dag.svg)
