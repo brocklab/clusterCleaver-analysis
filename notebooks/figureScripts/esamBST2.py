@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import seaborn as sns 
 from scipy.stats import wasserstein_distance, gaussian_kde
@@ -70,6 +71,7 @@ KDE1x, KDE1y = makeKDE(x, vals[is1])
 KDE0y = KDE0y
 KDE1y = KDE1y
 # %%
+matplotlib.rcParams.update({'font.size': 15})
 umappts = adata231.obsm['X_umap'].copy()
 inner = [['histogram'],
          ['stripplot']]
@@ -130,6 +132,7 @@ ax3.spines[['top', 'left', 'right']].set_visible(False)
 fig.tight_layout()
 
 fig.colorbar(map, ax = ax1)
+fig.savefig('../../figures/final/231Expression.png', dpi = 500)
 # %%
 adata231 = adatas['mdamb436']
 vals = adata231[:,'BST2'].X.toarray().ravel()
@@ -201,11 +204,16 @@ sns.stripplot(
         # jitter = True,
         ax = ax3,
         alpha = 0.75).set(
-    xlabel = f'Normalized ESAM Expression'
+    xlabel = f'Normalized BST2 Expression'
 )
 ax3.spines[['top', 'left', 'right']].set_visible(False)
 
 fig.tight_layout()
 
 fig.colorbar(map, ax = ax1)
+fig.savefig('../../figures/final/436Expression.png', dpi = 500)
+# %%
+adata = adatas['mdamb231']
+# %%
+visualization.plotHists(adata, gene = 'TSPAN8', truncate0=True)
 # %%

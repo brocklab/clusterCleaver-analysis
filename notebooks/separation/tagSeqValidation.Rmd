@@ -11,7 +11,8 @@ library(ggrepel)
 ```
 
 ```{r Get count matrix}
-cts = read.csv('../../data/tagSeqOuts/star_salmon/salmon.merged.gene_counts_length_scaled.tsv', sep = '\t', row.names = 1)
+setwd("/stor/work/Brock/Tyler/optimalSeparation/notebooks/separation")
+cts = read.csv('../../data/tagSeqOuts/star_salmon/salmon.merged.gene_counts.tsv', sep = '\t', row.names = 1)
 cts = cts[,2:ncol(cts)]
 cts = round(cts)
 
@@ -25,6 +26,18 @@ cts436 = cts[,colKeep436]
 
 dfGenes436 = read.csv('../../data/topGenes436.csv', row.names = 1)
 dfGenes231 = read.csv('../../data/topGenes231.csv', row.names = 1)
+```
+
+```{r}
+cts436Low = cts[,c("G1.MB435BST2lo",  "G2.MB435BST2lo",  "G3.MB435BST2lo")]
+cts436High = cts[,c("H1.MB435BST2hi",  "H2.MB435BST2hi",  "H3.MB435BST2hi")]
+cts231Low = cts[,c("C1.MB231ESAMneg", "C2.MB231ESAMneg",  "C3.MB231ESAMneg")]
+cts231High = cts[,c("D1.MB231ESAMpos", "D2.MB231ESAMpos", "D3.MB231ESAMpos")]
+
+# write.csv(cts231Low, '/stor/scratch/Brock/Tyler/geoUpload/tagSeq/processed/cts231Low.csv')
+# write.csv(cts231High, '/stor/scratch/Brock/Tyler/geoUpload/tagSeq/processed/cts231High.csv')
+# write.csv(cts436Low, '/stor/scratch/Brock/Tyler/geoUpload/tagSeq/processed/cts436Low.csv')
+# write.csv(cts436High, '/stor/scratch/Brock/Tyler/geoUpload/tagSeq/processed/cts436High.csv')
 ```
 
 ```{r Generate DE Genes}
@@ -47,6 +60,23 @@ dds436 <- DESeqDataSetFromMatrix(countData = cts436,
                               design = ~ condition)
 dds436 <- DESeq(dds436)
 res436 <- results(dds436, contrast = c('condition', 'high', 'low'))
+```
+```{r}
+conditions = c('low', 'low', 'low', 'high', 'high', 'high')
+types = rep('paired-end', 6)
+coldata231 = data.frame(condition = conditions, type = types)
+row.names(coldata231) = colnames(cts231)
+
+coldata436 = data.frame(condition = conditions, type = types)
+row.names(coldata436) = colnames(cts436)
+
+dds231 <- DESeqDataSetFromMatrix(countData = cts231,
+                              colData = coldata231,
+                              design = ~ condition)
+dds231 <- DESeq(dds231)
+res1 <- data.frame(results(dds231,contrast = c('condition', 'high', 'low')))
+res2 <- data.frame(results(dds231, contrast = c('condition', 'low', 'high')))
+
 ```
 
 ```{r}
@@ -174,8 +204,8 @@ emdGenes = read.csv('../../data/optimalGenes/allEMDGenesNewOld.csv', row.names =
 emdGenes436 = emdGenes[emdGenes$cellLine == 'mdamb436',]
 emdGenes231 = emdGenes[emdGenes$cellLine == 'mdamb231',]
 
-topEMD436 = emdGenes436$genes[0:10]
-topEMD231 = emdGenes231$genes[0:10]
+# topEMD436 = emdGenes436$genes[0:10]
+# topEMD231 = emdGenes231$genes[0:10]
 head(emdGenes436)
 
 row.names(emdGenes436) = seq(1, dim(emdGenes436)[1])
@@ -206,6 +236,9 @@ plotVolc$color = 'NA'
 plotVolc$color[sigDown] = 'down'
 plotVolc$color[sigUp] = 'up'
 cols = c('NA' = 'gray', 'down' = cols[1], 'up' = cols[2])
+
+topEMD231 = emdGenes231$genes[emdGenes231$genes %in% plotVolc$gene][0:10]
+
 plotVolc$geneLabel = ''
 plotVolc$geneLabel[plotVolc$gene %in% topEMD231] = plotVolc$gene[plotVolc$gene %in% topEMD231]
 
@@ -238,6 +271,9 @@ plotVolc$color = 'NA'
 plotVolc$color[sigDown] = 'down'
 plotVolc$color[sigUp] = 'up'
 cols = c('NA' = 'gray', 'down' = cols[1], 'up' = cols[2])
+
+topEMD436 = emdGenes436$genes[emdGenes436$genes %in% plotVolc$gene][0:10]
+
 plotVolc$geneLabel = ''
 plotVolc$geneLabel[plotVolc$gene %in% topEMD436] = plotVolc$gene[plotVolc$gene %in% topEMD436]
 
@@ -258,5 +294,85 @@ ggsave('../../figures/final/436VolcanoPlot.png',  p, dpi = 500, width = 3.3, hei
 ```
 
 ```{r}
+# Get significant tag seq genes
+sig231Tag = data.frame(res231)
+sig231Tag = sig231Tag[complete.cases(sig231Tag),]
+sig231Tag = sig231Tag[sig231Tag$padj<0.05,]
+sc231 = dfGenes231
+rownames(sc231) = sc231$names
+sc231 = sc231[,2:dim(sc231)[2]]
 
+# Make sure we're only comparing genes found in significant tag seq and any scRNA seq
+sharedGenes = intersect(rownames(sc231), rownames(sig231Tag))
+sig231Tag = sig231Tag[sharedGenes,]
+sc231 = sc231[sharedGenes,]
+
+nTop = 100
+scESAMPos = sc231[sc231$logfoldchanges > 0,]
+scESAMNeg = sc231[sc231$logfoldchanges < 0,]
+# Find how many DE tag seq are DE in single cell (same cluster)
+# ESAM Pos have logFC > 0
+topTagESAMPos = sig231Tag[sig231Tag$log2FoldChange > 0 & sig231Tag$padj < 0.05,]
+topTagESAMPos = topTagESAMPos[order(topTagESAMPos$padj, decreasing = FALSE),]
+topTagESAMPosGenes = rownames(topTagESAMPos)[0:nTop]
+pvals = scESAMPos[topTagESAMPosGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq ESAM positive genes are significant in matched cluster single cell data', nSig, nTop)
+
+topTagESAMNeg = sig231Tag[sig231Tag$log2FoldChange < 0 & sig231Tag$padj < 0.05,]
+topTagESAMNeg = topTagESAMNeg[order(topTagESAMNeg$padj, decreasing = FALSE),]
+topTagESAMNegGenes = rownames(topTagESAMNeg)[0:nTop]
+pvals = scESAMNeg[topTagESAMNegGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq ESAM negative genes are significant in matched cluster single cell data', nSig, nTop)
+
+# Find how many DE tag seq are DE in single cell (opposite cluster)
+pvals = scESAMNeg[topTagESAMPosGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq ESAM positive genes are significant in non-matched cluster single cell data', nSig, nTop)
+
+pvals = scESAMPos[topTagESAMNegGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq ESAM negative genes are significant in non-matched cluster single cell data', nSig, nTop)
+
+```
+
+```{r}
+# Get significant tag seq genes
+sig436Tag = data.frame(res436)
+sig436Tag = sig436Tag[complete.cases(sig436Tag),]
+sig436Tag = sig436Tag[sig436Tag$padj<0.05,]
+sc436 = dfGenes436
+rownames(sc436) = sc436$names
+sc436 = sc436[,2:dim(sc436)[2]]
+
+# Make sure we're only comparing genes found in significant tag seq and any scRNA seq
+sharedGenes = intersect(rownames(sc436), rownames(sig436Tag))
+sig436Tag = sig436Tag[sharedGenes,]
+sc436 = sc436[sharedGenes,]
+
+nTop = 100
+# BST2 Pos have logFC > 0
+scBST2Pos = sc436[sc436$logfoldchanges > 0,]
+scBST2Neg = sc436[sc436$logfoldchanges < 0,]
+
+topTagBST2Pos = sig436Tag[sig436Tag$log2FoldChange > 0 & sig436Tag$padj < 0.05,]
+topTagBST2Pos = topTagBST2Pos[order(topTagBST2Pos$padj, decreasing = FALSE),]
+topTagBST2PosGenes = rownames(topTagBST2Pos)[0:nTop]
+pvals = scBST2Pos[topTagBST2PosGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq BST2 positive genes are significant in single cell data', nSig, nTop)
+
+topTagBST2Neg = sig436Tag[sig436Tag$log2FoldChange < 0 & sig436Tag$padj < 0.05,]
+topTagBST2Neg = topTagBST2Neg[order(topTagBST2Neg$padj, decreasing = FALSE),]
+topTagBST2NegGenes = rownames(topTagBST2Neg)[0:nTop]
+pvals = scBST2Neg[topTagBST2NegGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq BST2 negative genes are significant in single cell data', nSig, nTop)
 ```
