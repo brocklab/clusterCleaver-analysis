@@ -16,36 +16,17 @@ colors = ['#BB4E44', '#44B1BB', '#76BB44', '#8944BB']
 sns.set_palette(sns.color_palette(colors))
 cmap = ListedColormap(pd.read_csv('../../figures/customCmap.csv', index_col=0).values)
 # %%
-adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
+adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed-regressed-clustered.h5ad')
 # %%
 samples = adataFull.obs['sample'].unique()
 adatas = {}
 for sample in samples:
     adataSub = adataFull[adataFull.obs['sample'].isin([sample])]
     adataSub = adataSub[adataSub.obs['scDblFinder_class'] == 'singlet']
-    sc.pp.highly_variable_genes(adataSub, min_mean=0.0125, max_mean=3, min_disp=0.5)
+    # sc.pp.highly_variable_genes(adataSub, min_mean=0.0125, max_mean=3, min_disp=0.5)
     compute_dimensionality_reductions(adataSub)
     # sc.pl.umap(adataSub, title = sample)
     adatas[sample] = adataSub
-# %%
-cellLineRes = {}
-for cellLine, adataSub in adatas.items():
-    leidenResolution = 2
-    nLeiden = 5
-    c = 1
-    if cellLine == 'hcc38':
-        initLeiden = 3
-    else:
-        initLeiden = 2
-    while nLeiden != initLeiden:
-        leidenResolution /= 1.3
-        sc.tl.leiden(adataSub, resolution= leidenResolution)
-        nLeiden = len(adataSub.obs['leiden'].unique())
-        c += 1
-        if c > 20:
-            leidenResolution = 0
-            break
-    cellLineRes[cellLine] = leidenResolution
 # %%
 def makeKDE(x, vals):
     density = gaussian_kde(vals)
@@ -55,7 +36,7 @@ def makeKDE(x, vals):
 
 # %%
 adata231 = adatas['mdamb231']
-vals = adata231[:,'ESAM'].X.toarray().ravel()
+vals = adata231[:,'ESAM'].layers['log1p_norm'].toarray().ravel()
 is0 = adata231.obs['leiden'] == '0'
 is1 = adata231.obs['leiden'] == '1'
 
@@ -135,21 +116,9 @@ fig.colorbar(map, ax = ax1)
 fig.savefig('../../figures/final/231Expression.png', dpi = 500)
 # %%
 adata231 = adatas['mdamb436']
-vals = adata231[:,'BST2'].X.toarray().ravel()
+vals = adata231[:,'BST2'].layers['log1p_norm'].toarray().ravel()
 is0 = adata231.obs['leiden'] == '0'
 is1 = adata231.obs['leiden'] == '1'
-
-# %%
-flowImg = plt.imread('../../figures/esamFlow.png')
-dfHist = pd.DataFrame(vals, adata231.obs['leiden']).reset_index()
-dfHist.columns = ['leiden', 'expression']
-x = [np.min(vals), np.max(vals)]
-
-KDE0x, KDE0y = makeKDE(x, vals[is0])
-KDE1x, KDE1y = makeKDE(x, vals[is1])
-
-KDE0y = KDE0y
-KDE1y = KDE1y
 # %%
 umappts = adata231.obsm['X_umap'].copy()
 inner = [['histogram'],
@@ -212,8 +181,3 @@ fig.tight_layout()
 
 fig.colorbar(map, ax = ax1)
 fig.savefig('../../figures/final/436Expression.png', dpi = 500)
-# %%
-adata = adatas['mdamb231']
-# %%
-visualization.plotHists(adata, gene = 'TSPAN8', truncate0=True)
-# %%

@@ -61,23 +61,6 @@ dds436 <- DESeqDataSetFromMatrix(countData = cts436,
 dds436 <- DESeq(dds436)
 res436 <- results(dds436, contrast = c('condition', 'high', 'low'))
 ```
-```{r}
-conditions = c('low', 'low', 'low', 'high', 'high', 'high')
-types = rep('paired-end', 6)
-coldata231 = data.frame(condition = conditions, type = types)
-row.names(coldata231) = colnames(cts231)
-
-coldata436 = data.frame(condition = conditions, type = types)
-row.names(coldata436) = colnames(cts436)
-
-dds231 <- DESeqDataSetFromMatrix(countData = cts231,
-                              colData = coldata231,
-                              design = ~ condition)
-dds231 <- DESeq(dds231)
-res1 <- data.frame(results(dds231,contrast = c('condition', 'high', 'low')))
-res2 <- data.frame(results(dds231, contrast = c('condition', 'low', 'high')))
-
-```
 
 ```{r}
 nTopGenes = 200
@@ -93,12 +76,12 @@ top436 = top436[complete.cases(top436),]
 top436 = top436[rowSums(top436) > 0,]
 
 # Reverse order of samples such that it's BST2High and then low 
-# top436 = rev(top436)
+top436 =top436[seq(dim(top231)[1],1),]
 
 acceptedSingleCell = dfGenes436[dfGenes436$names %in% row.names(top436),]
 
-nLow = sum(acceptedSingleCell$score > 0)
-nHigh = sum(acceptedSingleCell$score < 0)
+nLow = sum(acceptedSingleCell$score < 0)
+nHigh = sum(acceptedSingleCell$score > 0)
 
 labelRows = data.frame(group = as.factor(c(rep('BST2 Low', nLow), rep('BST2 High', nHigh))))
 
@@ -139,6 +122,7 @@ ggsave('../../figures/final/436TagSeqHeatmap.png',
        width = 2.2*scaling)
 ```
 
+
 ```{r}
 nTopGenes = 200
 nLower = dim(dfGenes231)[1]-nTopGenes+1
@@ -153,11 +137,13 @@ top231 = top231[complete.cases(top231),]
 top231 = top231[rowSums(top231) > 0,]
 
 acceptedSingleCell = dfGenes231[dfGenes231$names %in% row.names(top231),]
-# Reverse order of samples such that it's BST2High and then low 
+# Reverse order of samples such that it's ESAM High genes and then low 
 # top231 = rev(top231)
+top231 =top231[seq(dim(top231)[1],1),]
 
-nLow = sum(acceptedSingleCell$score > 0)
-nHigh = sum(acceptedSingleCell$score < 0)
+print(head(top231))
+nLow = sum(acceptedSingleCell$score < 0)
+nHigh = sum(acceptedSingleCell$score > 0)
 
 labelRows = data.frame(group = as.factor(c(rep('ESAM Low', nLow), rep('ESAM High', nHigh))))
 
@@ -184,8 +170,8 @@ p = pheatmap(
               drop_levels = TRUE,
               cluster_rows = FALSE,
               # legend = FALSE,
-              labels_row = rep('',dim(top231)[1]),
-              labels_col = rep('',dim(top231)[2]),
+              labels_row = rep('',dim(top436)[1]),
+              labels_col = rep('',dim(top436)[2]),
               angle_col = 0
 )
 scaling = 2
@@ -195,6 +181,10 @@ ggsave('../../figures/final/231TagSeqHeatmap.png',
        dpi = 900,
        height = 2.4*scaling,
        width = 2.2*scaling)
+
+```
+```{r}
+pheatmap(top231, scale = 'row')
 
 ```
 
@@ -307,7 +297,7 @@ sharedGenes = intersect(rownames(sc231), rownames(sig231Tag))
 sig231Tag = sig231Tag[sharedGenes,]
 sc231 = sc231[sharedGenes,]
 
-nTop = 100
+nTop = 50
 scESAMPos = sc231[sc231$logfoldchanges > 0,]
 scESAMNeg = sc231[sc231$logfoldchanges < 0,]
 # Find how many DE tag seq are DE in single cell (same cluster)
@@ -318,7 +308,7 @@ topTagESAMPosGenes = rownames(topTagESAMPos)[0:nTop]
 pvals = scESAMPos[topTagESAMPosGenes,'pvals_adj']
 pvals = pvals[complete.cases(pvals)]
 nSig = sum(pvals < 0.05)
-sprintf('%g/%g DE Tag seq ESAM positive genes are significant in matched cluster single cell data', nSig, nTop)
+sprintf('%g/%g DE Tag seq ESAM positive genes are significant in matched cluster single cell data (%0.2f)', nSig, nTop, nSig/nTop)
 
 topTagESAMNeg = sig231Tag[sig231Tag$log2FoldChange < 0 & sig231Tag$padj < 0.05,]
 topTagESAMNeg = topTagESAMNeg[order(topTagESAMNeg$padj, decreasing = FALSE),]
@@ -326,18 +316,18 @@ topTagESAMNegGenes = rownames(topTagESAMNeg)[0:nTop]
 pvals = scESAMNeg[topTagESAMNegGenes,'pvals_adj']
 pvals = pvals[complete.cases(pvals)]
 nSig = sum(pvals < 0.05)
-sprintf('%g/%g DE Tag seq ESAM negative genes are significant in matched cluster single cell data', nSig, nTop)
+sprintf('%g/%g DE Tag seq ESAM negative genes are significant in matched cluster single cell data (%0.2f)', nSig, nTop, nSig/nTop)
 
 # Find how many DE tag seq are DE in single cell (opposite cluster)
 pvals = scESAMNeg[topTagESAMPosGenes,'pvals_adj']
 pvals = pvals[complete.cases(pvals)]
 nSig = sum(pvals < 0.05)
-sprintf('%g/%g DE Tag seq ESAM positive genes are significant in non-matched cluster single cell data', nSig, nTop)
+sprintf('%g/%g DE Tag seq ESAM positive genes are significant in non-matched cluster single cell data (%0.2f)', nSig, nTop, nSig/nTop)
 
 pvals = scESAMPos[topTagESAMNegGenes,'pvals_adj']
 pvals = pvals[complete.cases(pvals)]
 nSig = sum(pvals < 0.05)
-sprintf('%g/%g DE Tag seq ESAM negative genes are significant in non-matched cluster single cell data', nSig, nTop)
+sprintf('%g/%g DE Tag seq ESAM negative genes are significant in non-matched cluster single cell data (%0.2f)', nSig, nTop, nSig/nTop)
 
 ```
 
@@ -355,7 +345,7 @@ sharedGenes = intersect(rownames(sc436), rownames(sig436Tag))
 sig436Tag = sig436Tag[sharedGenes,]
 sc436 = sc436[sharedGenes,]
 
-nTop = 100
+nTop = 50
 # BST2 Pos have logFC > 0
 scBST2Pos = sc436[sc436$logfoldchanges > 0,]
 scBST2Neg = sc436[sc436$logfoldchanges < 0,]
@@ -366,7 +356,7 @@ topTagBST2PosGenes = rownames(topTagBST2Pos)[0:nTop]
 pvals = scBST2Pos[topTagBST2PosGenes,'pvals_adj']
 pvals = pvals[complete.cases(pvals)]
 nSig = sum(pvals < 0.05)
-sprintf('%g/%g DE Tag seq BST2 positive genes are significant in single cell data', nSig, nTop)
+sprintf('%g/%g DE Tag seq BST2 positive genes are significant in single cell data (%0.2f)', nSig, nTop, nSig/nTop)
 
 topTagBST2Neg = sig436Tag[sig436Tag$log2FoldChange < 0 & sig436Tag$padj < 0.05,]
 topTagBST2Neg = topTagBST2Neg[order(topTagBST2Neg$padj, decreasing = FALSE),]
@@ -374,5 +364,20 @@ topTagBST2NegGenes = rownames(topTagBST2Neg)[0:nTop]
 pvals = scBST2Neg[topTagBST2NegGenes,'pvals_adj']
 pvals = pvals[complete.cases(pvals)]
 nSig = sum(pvals < 0.05)
-sprintf('%g/%g DE Tag seq BST2 negative genes are significant in single cell data', nSig, nTop)
+sprintf('%g/%g DE Tag seq BST2 negative genes are significant in single cell data (%0.2f)', nSig, nTop, nSig/nTop)
+
+# Find how many DE tag seq are DE in single cell (opposite cluster)
+pvals = scBST2Neg[topTagBST2PosGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq BST2 positive genes are significant in non-matched cluster single cell data (%0.2f)', nSig, nTop, nSig/nTop)
+
+pvals = scBST2Pos[topTagBST2NegGenes,'pvals_adj']
+pvals = pvals[complete.cases(pvals)]
+nSig = sum(pvals < 0.05)
+sprintf('%g/%g DE Tag seq BST2 negative genes are significant in non-matched cluster single cell data (%0.2f)', nSig, nTop, nSig/nTop)
+```
+
+```{r}
+
 ```

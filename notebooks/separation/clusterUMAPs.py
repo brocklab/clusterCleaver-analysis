@@ -13,7 +13,7 @@ from optimalSeparation import searchOptimal, dataLoading, visualization
 adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed-regressed.h5ad')
 # %%
 adataFull = adataFull[adataFull.obs['scDblFinder_class'] == 'singlet']
-# adataFull = adataFull[adataFull.obs['sample'].isin(['mdamb231', 'mdamb436'])]
+adataFull = adataFull[~adataFull.obs['sample'].isin(['hcc38'])]
 
 # sc.pp.highly_variable_genes(adataFull, min_mean=0.0125, max_mean=3, min_disp=0.5)
 compute_dimensionality_reductions(adataFull)
@@ -109,7 +109,7 @@ cellLineNames = {'bt474': 'BT474',
                  'hcc38'   : 'HCC38',
                  'hs578t': 'Hs578T',
                  'mdamb436': 'MDA-MB-436'}
-fig, axs = plt.subplots(3, 2, figsize = (7.5,10/3))
+fig, axs = plt.subplots(3, 2, figsize = (7.5,10))
 axs = axs.ravel()
 for i, (cellLine, adata) in enumerate(adatas.items()):
     ax = axs[i]
@@ -158,9 +158,9 @@ for i, (cellLine, adata) in enumerate(adatas.items()):
         ax.xaxis.label.set_fontsize(10)
         ax.yaxis.label.set_fontsize(10)
 
-# fig.delaxes(axs[-1])
+fig.delaxes(axs[-1])
 plt.show()
-fig.savefig('../../figures/final/umapAllLinesClustered.png', dpi = 500)
+fig.savefig('../../figures/final/umapAllLinesClustered.png', dpi = 500, bbox_inches = 'tight')
 
 # %% Get PCC
 leidens = []
@@ -183,7 +183,9 @@ pcaVals = pd.DataFrame(pcaVals)
 pcaCorr = pcaVals.corr('pearson')
 
 import seaborn as sns
+plt.figure(figsize = (10, 10))
 sns.heatmap(pcaCorr, annot = True, fmt = '.3').set_title('Pearson Correlation')
+plt.savefig('../../figures/final/expressionPearson.png', dpi = 500, bbox_inches = 'tight')
 plt.show()
 # %%
 sc.pl.pca(adataFull, color = 'cellCluster', title = 'cellLine - cluster #')

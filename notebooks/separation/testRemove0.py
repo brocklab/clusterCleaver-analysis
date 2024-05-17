@@ -16,23 +16,26 @@ from tqdm import tqdm
 from scrna.cluster.main import compute_dimensionality_reductions
 from optimalSeparation import searchOptimal, dataLoading, visualization
 # %%
-adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed.h5ad')
-
-adatas = dataLoading.processFullAnndata(adataFull)
+adataFull = sc.read_h5ad('../../data/h5ads/jostner-processed-regressed-clustered.h5ad')
 surfaceGenes = dataLoading.cleanSurfaceGenes('../..')
-# %%
-# adata = adatas['mdamb231']
-# allEMDGenes = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'])
-# allEMDCombos = searchOptimal.searchExpressionDist(adata, surfaceGenes['gene'], nGenes = 2, topGenes = allEMDGenes['genes'])
 
+samples = adataFull.obs['sample'].unique()
+adatas = {}
+for sample in samples:
+    adataSub = adataFull[adataFull.obs['sample'].isin([sample])]
+    adataSub = adataSub[adataSub.obs['scDblFinder_class'] == 'singlet']
+    # sc.pp.highly_variable_genes(adataSub, min_mean=0.0125, max_mean=3, min_disp=0.5)
+    compute_dimensionality_reductions(adataSub)
+    # sc.pl.umap(adataSub, title = sample)
+    adatas[sample] = adataSub
 # %%
 allEMDGenes, allEMDGenesNo0 = {}, {}
-cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'hcc38', 'mdamb436']
-cellLines = ['bt474']
+cellLines = ['mdamb231', 'bt474', 'hs578t', 'mdamb453', 'mdamb436']
+# cellLines = ['bt474']
 for cellLine in cellLines:
     print(f'Searching {cellLine}')
-    adata = adatas[cellLine]
-
+    adata = adatas[cellLine].copy()
+    adata.X = adata.layers['log1p_norm']
     emdGenes = searchOptimal.searchExpressionDist1D(adata, surfaceGenes['gene'], modifier = None)
 
     emdGenes.columns = ['genes', 'scoresOld', 'cluster']
@@ -54,6 +57,28 @@ dfEMDGenesAll =dfEMDGenesNo0.merge(dfEMDGenes0, on = ['genes', 'cellLine'])
 dfEMDGenesAll.head()
 
 dfEMDGenesAll.to_csv('../../data/optimalGenes/allEMDGenesNewOld.csv')
+# %%
+dfEMDGenes = dfEMDGenesAll.loc[dfEMDGenesAll['cellLine'] == 'mdamb231']
+dfEMDGenes = dfEMDGenes[['genes', 'scoresNew']]
+dfEMDGenes.coolumns = ['genes', 'score']
+dfEMDGenes.to_csv('../../data/emdGenesRankScore231.csv')
+
+dfEMDGenes = dfEMDGenesAll.loc[dfEMDGenesAll['cellLine'] == 'mdamb436']
+dfEMDGenes = dfEMDGenes[['genes', 'scoresNew']]
+dfEMDGenes.coolumns = ['genes', 'score']
+dfEMDGenes.to_csv('../../data/emdGenesRankScore436.csv')
+# %%
+adata = adatas['mdamb231']
+adata.X = adata.layers['log1p_norm']
+sc.tl.rank_genes_groups(adata, groupby = 'leiden')
+dfGeneRank = sc.get.rank_genes_groups_df(adata, group = '1')
+dfGeneRank.to_csv("../../data/topGenes231.csv")
+
+adata = adatas['mdamb436']
+adata.X = adata.layers['log1p_norm']
+sc.tl.rank_genes_groups(adata, groupby = 'leiden')
+dfGeneRank = sc.get.rank_genes_groups_df(adata, group = '1')
+dfGeneRank.to_csv("../../data/topGenes436.csv")
 # %%
 dfEMDGenesAll.sort_values(by = 'scoresNew', ascending=False)
 # %%
